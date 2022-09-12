@@ -1,0 +1,23 @@
+/**
+ *  4-way Multiplexor: select one of four input
+ *  
+ *  using truth table to calculate Boolean function  
+ *
+ */
+
+
+CHIP Mux4Way {
+    IN a, b, c, d, sel[2];
+    OUT out;
+
+    PARTS:
+    Not(in=sel[0], out=nc0);
+    Not(in=sel[1], out=nc1);
+    And3(a=a, b=nc1, c=nc0, out=out0);
+    And3(a=b, b=nc1, c=sel[0], out=out1);
+    And3(a=c, b=sel[1], c=nc0, out=out2);
+    And3(a=d, b=sel[1], c=sel[0], out=out3);
+    Or(a=out0, b=out1, out=out01);
+    Or(a=out2, b=out3, out=out23);
+    Or(a=out01, b=out23, out=out);
+}
