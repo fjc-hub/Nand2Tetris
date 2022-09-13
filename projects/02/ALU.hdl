@@ -42,5 +42,31 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+
+    // process zx, nx
+    Mux16(a=x, b=false, sel=zx, out=x0);
+    Not16(in=x0, out=notX);
+    Mux16(a=x0, b=notX, sel=nx, out=x1);
+
+    // process zy, ny
+    Mux16(a=y, b=false, sel=zy, out=y0);
+    Not16(in=y0, out=notY);
+    Mux16(a=y0, b=notY, sel=ny, out=y1);
+
+    // process f
+    Add16(a=x1, b=y1, out=XpulsY);
+    And16(a=x1, b=y1, out=XandY);
+    Mux16(a=XandY, b=XpulsY, sel=f, out=out0);
+
+    // process no
+    Not16(in=out0, out=notOut0);
+    // 注意这里如何正确地拆分总线bus,以供后序电路使用
+    Mux16(a=out0, b=notOut0, sel=no, out=out, out=end0, out[15]=end1);
+
+    // set state code(状态码): zr
+    Or16Way(in=end0, out=tmpZr);
+    Mux(a=true, b=false, sel=tmpZr, out=zr);
+
+    // set state code(状态码): ng 
+    Mux(a=false, b=true, sel=end1, out=ng);
 }
