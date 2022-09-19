@@ -10,3 +10,30 @@
 // R0 >= 0, R1 >= 0, and R0*R1 < 32768.
 
 // Put your code here.
+
+//pseudo code
+// M[@R2] = 0       // 初始化, avoid M[@R0] == 0 then cause error result
+// for M[@R0] > 0 {
+//     M[@R0]--
+//     M[@R2] = M[@R2] + M[@R1]
+// }
+
+@R2
+M=0             // reset M[@R2]
+(loop)
+    @R0
+    D=M
+    @end
+    D; JLE      // M[@R0] <= 0
+    @R0
+    M = D - 1
+    @R1
+    D=M
+    @R2
+    M=M+D
+    @loop
+    0; JMP
+
+(end)
+    @end
+    0; JMP

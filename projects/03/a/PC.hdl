@@ -16,5 +16,16 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Inc16(in=regout, out=plusone);
+	// Mux16(a=false, b=plusone, sel=inc, out=incout);
+	// Mux16(a=incout, b=in, sel=load, out=loadout);
+	// Mux16(a=loadout, b=false, sel=reset, out=toload);
+	// Or(a=load, b=reset, out=loadorreset);
+	// Or(a=loadorreset, b=inc, out=loadflag);
+    // Register(in=toload, load=loadflag, out=out, out=regout);
+    
+    // code contral siganl(reset, load, inc)
+    Inc16(in=regout, out=incout);
+    Mux8Way16(a=regout, b=incout, c=in, d=in, e=false, f=false, g=false, h=false, sel[0]=inc, sel[1]=load, sel[2]=reset, out=out0);
+    Register(in=out0, load=true, out=out, out=regout);
 }
