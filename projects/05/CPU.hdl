@@ -41,23 +41,25 @@ CHIP CPU {
     PARTS:
     
     // determine whether A-instruction or C-instruction
-    DMux(in=true, sel=instructions[14], a=isA, b=isD);
+    DMux(in=true, sel=instruction[15], a=isA, b=isD);
     // A-instruction
-    Mux16(a=AluOut, b[0..14]=instruction[0..14], sel=isA, out=inA);
+    Mux16(a=false, b=AluOut, sel=isWriteA, out=AluToA);
+    Mux16(a=AluToA, b[0..14]=instruction[0..14], b[15]=false, sel=isA, out=inA);
+    Or(a=isWriteA, b=isA, out=loadA);
+    ARegister(in=inA, load=loadA, out=valueA, out[0..14]=addressM[0..14]); // register A
+
+    DRegister(in=AluOut, load=isWriteD, out=AluInX); // register D
+    
+    // calculate by ALU
+    Mux16(a=valueA, b=inM, sel=instruction[12], out=AluInY);
+    ALU(x=AluInX, y=AluInY, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=AluOut, out=outM, zr=zr, ng=ng);
+
     // C-instruction
     And(a=instruction[3], b=isD, out=isWriteM);
     And(a=instruction[4], b=isD, out=isWriteD);
     And(a=instruction[5], b=isD, out=isWriteA);
     Mux(a=false, b=true, sel=isWriteM, out=writeM);
-
-
-    Register(in=inA, load=isWriteA, out=valueA, out[0..14]=addressM[0..14]); // register A
-
-    Register(in=AluOut, load=isWriteD, out=AluInY); // register D
-    
-    // calculate by ALU
-    Mux16(a=valueA, b=inM, sel=instruction[12], out=AluInX);
-    ALU(x=AluInX, y=AluInY, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=AluOut, out=outM, zr=zr, ng=ng);
+    //Mux16(a=false, b=valueA, sel=innerWriteM, out[0..14]=addressM[0..14]);
 
     // jump logic
     DMux8Way(in=true, sel=instruction[0..2], a=null, b=jgt, c=jeq, d=jge, e=jlt, f=jne, g=jle, h=jmp);
@@ -71,8 +73,9 @@ CHIP CPU {
     And(a=jlt, b=ng, out=jlt2);
     And(a=jne, b=nzr, out=jne2);
     And(a=jle, b=cJle, out=jle2);
-    Or8Way(in[0]=jgt2, in[1]=jeq2, in[2]=jge2, in[3]=jlt2, in[4]=jne2, in[5]=jle2, in[6]=jmp, in[7]=false, out=jump);
-    
+    Or8Way(in[0]=jgt2, in[1]=jeq2, in[2]=jge2, in[3]=jlt2, in[4]=jne2, in[5]=jle2, in[6]=jmp, out=jump0);
+    And(a=jump0, b=isD, out=jump);
+
     // calculate next instruction address
     PC(in=valueA, load=jump, inc=true, reset=reset, out[0..14]=pc);
 }
