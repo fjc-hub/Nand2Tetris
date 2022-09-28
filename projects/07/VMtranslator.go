@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -94,8 +95,33 @@ func (p Parser) advance() {
 	if p.currentCmd == "" {
 		log.Fatalln("inoke incorrectly advance()")
 	}
-	cmd := p.currentCmd
-	compnents := strings.Split(cmd, " ") // multiple interval space ??
+	var err error
+	cmd := p.var_commandType
+	p.var_commandType = ""
+	// splits the string s around each instance of one or more consecutive white space
+	compnents := strings.Fields(cmd)
+	// identify var_commandType
+	switch compnents[0] {
+	case "push", "pop":
+		if compnents[0] == "push" {
+			p.var_commandType = C_PUSH
+		} else {
+			p.var_commandType = C_POP
+		}
+		p.var_arg1 = compnents[1]
+		p.var_arg2, err = strconv.Atoi(compnents[2])
+		if err != nil {
+			log.Fatalf("switch case string to integer error: %v\n", err)
+		}
+	case "add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not":
+		p.var_commandType = C_ARITHMETIC
+		p.var_arg1 = compnents[1]
+	case "return":
+		p.var_commandType = C_RETURN
+	default:
+		log.Fatalf("invalid key word %v\n", compnents[0])
+		return
+	}
 }
 
 // return the type of current command (C_ARITHMETIC represents all the arithmetic/logic commands)
@@ -133,6 +159,44 @@ type CodeWriter struct {
 
 // write to the output file the assembly code that implements the given arithmetic command
 func (c CodeWriter) writeArithmetic(command string) {
+	// c.output.WriteString("sasd")
+	switch command {
+	case "add":
+		c.output.WriteString(`
+			@SP // store M[sp-1] into D
+			A=A-1
+			D=M
+			@SP // M[sp]=M[sp]-2
+			M=M-2
+			@SP // M[sp]=M[sp]+D
+			M=M+D
+		`)
+	case "sub":
+		c.output.WriteString(`
+			@SP // store M[sp-1] into D
+			A=A-1
+			D=M
+			@SP // M[sp]=M[sp]-2
+			M=M-2
+			@SP // M[sp]=M[sp]-D
+			M=M-D
+		`)
+	case "neg":
+		c.output.WriteString(`
+			@SP // store M[sp-1] into A
+			A=A-1
+			M=-M
+		`)
+	case "eq":
+		c.output.WriteString(`
+			
+		`)
+	case "gt":
+	case "lt":
+	case "and":
+	case "or":
+	case "not":
+	}
 
 }
 
