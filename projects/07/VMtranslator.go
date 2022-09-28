@@ -21,6 +21,11 @@ const (
 	C_CALL       = "c_call"
 )
 
+const (
+	TREE  = 0xFFFF
+	FALSE = 0x0000
+)
+
 func main() {
 	inFile := os.Args[1]
 	outFile := os.Args[2]
@@ -155,49 +160,115 @@ func (p Parser) arg2() int {
 //CodeWriter: writes the assembly code that implements the parsed command
 type CodeWriter struct {
 	output *bufio.Writer
+	count  int //record the number of assembly command
 }
 
 // write to the output file the assembly code that implements the given arithmetic command
 func (c CodeWriter) writeArithmetic(command string) {
-	// c.output.WriteString("sasd")
 	switch command {
 	case "add":
 		c.output.WriteString(`
-			@SP // store M[sp-1] into D
-			A=A-1
-			D=M
-			@SP // M[sp]=M[sp]-2
-			M=M-2
-			@SP // M[sp]=M[sp]+D
+			@SP 	// A=sp
+			AM=M-1 	// A=(*sp)-1; (*sp)--
+			D=M 	// D=*(*sp)
+			A=A-1	// A=(*sp)-1
 			M=M+D
 		`)
 	case "sub":
 		c.output.WriteString(`
-			@SP // store M[sp-1] into D
-			A=A-1
-			D=M
-			@SP // M[sp]=M[sp]-2
-			M=M-2
-			@SP // M[sp]=M[sp]-D
+			@SP		// A=sp
+			AM=M-1	// A=(*sp)-1; (*sp)--
+			D=M		// D=*(*sp)
+			A=A-1	// A=(*sp)-1
 			M=M-D
 		`)
 	case "neg":
 		c.output.WriteString(`
-			@SP // store M[sp-1] into A
-			A=A-1
+			@SP		// A=sp
+			A=M-1	// A=(*sp)-1
 			M=-M
 		`)
 	case "eq":
-		c.output.WriteString(`
-			
-		`)
+		cnt := c.count
+		c.count++
+		c.output.WriteString(fmt.Sprintf(`
+			@SP
+			AM=M-1
+			D=M
+			A=A-1
+			@eq.true.%v
+			M-D;JEQ
+			M=0
+			@eq.skip.%v
+			0; JMP
+			(eq.true.%v)
+			M=-1
+			(eq.skip.%v)
+		`, cnt, cnt, cnt, cnt),
+		)
 	case "gt":
+		cnt := c.count
+		c.count++
+		c.output.WriteString(fmt.Sprintf(`
+			@SP
+			AM=M-1
+			D=M
+			A=A-1
+			@gt.true.%v
+			M-D;JGT
+			M=0
+			@gt.skip.%v
+			0; JMP
+			(gt.true.%v)
+			M=-1
+			(gt.skip.%v)
+		`, cnt, cnt, cnt, cnt),
+		)
 	case "lt":
+		cnt := c.count
+		c.count++
+		c.output.WriteString(fmt.Sprintf(`
+			@SP
+			AM=M-1
+			D=M
+			A=A-1
+			@lt.true.%v
+			M-D;JLT
+			M=0
+			@lt.skip.%v
+			0; JMP
+			(lt.true.%v)
+			M=-1
+			(lt.skip.%v)
+		`, cnt, cnt, cnt, cnt),
+		)
 	case "and":
+		c.output.WriteString(`
+			@SP		// A=sp
+			AM=M-1	// A=(*sp)-1; (*sp)--
+			D=M		// D=*(*sp)
+			A=A-1	// A=(*sp)-1
+			M=M&D
+		`)
 	case "or":
+		c.output.WriteString(`
+			@SP		// A=sp
+			AM=M-1	// A=(*sp)-1; (*sp)--
+			D=M		// D=*(*sp)
+			A=A-1	// A=(*sp)-1
+			M=M|D
+		`)
 	case "not":
+		c.output.WriteString(`
+			@SP
+			A=M-1
+			M=!M
+		`)
 	}
-
+	c.output.WriteString(`
+		@SP
+		M=M+1
+	`)
 }
 
 // write to the output file the assembly code that implements the given arithmetic command,
