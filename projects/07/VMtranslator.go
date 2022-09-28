@@ -21,10 +21,17 @@ const (
 	C_CALL       = "c_call"
 )
 
-const (
-	TREE  = 0xFFFF
-	FALSE = 0x0000
-)
+var m_segment map[string]string
+
+func init() {
+	m_segment = map[string]string{
+		"argument": "ARG",
+		"local":    "LCL",
+		"static":   "",
+		"this":     "THIS",
+		"that":     "THAT",
+	}
+}
 
 func main() {
 	inFile := os.Args[1]
@@ -51,9 +58,9 @@ func main() {
 		case C_ARITHMETIC:
 			codeWriter.writeArithmetic(parser.arg1())
 		case C_PUSH:
-			codeWriter.writePushPop(C_PUSH, parser.arg1(), parser.arg2())
+			codeWriter.writePush(parser.arg1(), parser.arg2())
 		case C_POP:
-			codeWriter.writePushPop(C_POP, parser.arg1(), parser.arg2())
+			codeWriter.writePop(parser.arg1(), parser.arg2())
 		case C_LABEL:
 		case C_GOTO:
 		case C_IF:
@@ -159,8 +166,10 @@ func (p Parser) arg2() int {
 
 //CodeWriter: writes the assembly code that implements the parsed command
 type CodeWriter struct {
-	output *bufio.Writer
-	count  int //record the number of assembly command
+	output     *bufio.Writer
+	count      int // record the number of assembly command
+	fileName   string
+	static_cnt int // the number of static variable of this VM file (named fileName)
 }
 
 // write to the output file the assembly code that implements the given arithmetic command
@@ -272,9 +281,162 @@ func (c CodeWriter) writeArithmetic(command string) {
 }
 
 // write to the output file the assembly code that implements the given arithmetic command,
-// where command is either C_PUSH or C_POP
-func (c CodeWriter) writePushPop(cmd, segment string, index int) {
+// where command is C_PUSH
+func (c CodeWriter) writePush(segment string, index int) {
+	switch segment {
+	case "argument":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@ARG
+			A=M+D
+			D=M
+		`, index))
+	case "local":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@LCL
+			A=M+D
+			D=M
+		`, index))
+	case "static":
+		cnt := strconv.Itoa(c.static_cnt)
+		c.static_cnt++
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@%v
+			A=M+D
+			D=M
+		`, index, c.fileName+cnt))
+	case "constant":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+		`, index))
+	case "this":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@THIS
+			A=M+D
+			D=M
+		`, index))
+	case "that":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@THAT
+			A=M+D
+			D=M
+		`, index))
+	case "pointer":
+		if index == 0 {
+			c.output.WriteString(`
+				@THIS
+				D=M
+			`)
+		} else {
+			c.output.WriteString(`
+				@THAT
+				D=M
+			`)
+		}
+	case "temp":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@R5
+			A=M+D
+			D=M
+		`, index))
+	default:
+		log.Fatalf("invalid segement %v\n", segment)
+		return
+	}
+	c.output.WriteString(`
+		@SP		// (*sp) = D
+		A=M
+		M=D
+		@SP		// sp++
+		M=M+1 
+	`)
+}
 
+// write to the output file the assembly code that implements the given arithmetic command,
+// where command is C_POP
+func (c CodeWriter) writePop(segment string, index int) {
+	switch segment {
+	case "argument":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@ARG
+			D=M+D
+		`, index))
+	case "local":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@LCL
+			D=M+D
+		`, index))
+	case "static":
+		cnt := strconv.Itoa(c.static_cnt)
+		c.static_cnt++
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@%v
+			D=M+D
+		`, index, c.fileName+cnt))
+	case "this":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@THIS
+			D=M+D
+		`, index))
+	case "that":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@THAT
+			D=M+D
+		`, index))
+	case "pointer":
+		if index == 0 {
+			c.output.WriteString(`
+				@THIS
+				D=M
+			`)
+		} else {
+			c.output.WriteString(`
+				@THAT
+				D=M
+			`)
+		}
+	case "temp":
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+			@R5
+			D=M+D
+		`, index))
+	default:
+		log.Fatalf("invalid segement %v\n", segment)
+		return
+	}
+	c.output.WriteString(`
+		@R13
+		M=D
+		@SP
+		AM=M-1
+		D=M
+		@R13
+		M=D
+	`)
 }
 
 // flush and close
