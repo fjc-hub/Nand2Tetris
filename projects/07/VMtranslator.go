@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -21,22 +22,15 @@ const (
 	C_CALL       = "c_call"
 )
 
-var m_segment map[string]string
-
-func init() {
-	m_segment = map[string]string{
-		"argument": "ARG",
-		"local":    "LCL",
-		"static":   "",
-		"this":     "THIS",
-		"that":     "THAT",
-	}
-}
-
 func main() {
-	inFile := os.Args[1]
-	outFile := os.Args[2]
-	input, err := os.OpenFile(inFile, os.O_RDONLY, 777)
+	path := os.Args[1]
+	fileDir, pureName, fileExt, isFile := parsePath(path)
+	if !isFile || fileExt != ".vm" {
+		log.Fatal("invalid file")
+	}
+	outFile := fileDir + "/" + pureName + ".asm"
+
+	input, err := os.OpenFile(path, os.O_RDONLY, 777)
 	defer input.Close()
 	if err != nil {
 		log.Fatalf("open input file error: %v", err)
@@ -46,13 +40,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("open output file error: %v", err)
 	}
-	parser := Parser{
+	parser := &Parser{
 		input: bufio.NewScanner(input),
 	}
-	codeWriter := CodeWriter{
-		output: bufio.NewWriter(output),
+	codeWriter := &CodeWriter{
+		output:   bufio.NewWriter(output),
+		fileName: pureName,
 	}
-	for ; parser.hasMoreCommands(); parser.advance() {
+	for parser.hasMoreCommands() {
+		parser.advance()
 		cmdType := parser.commandType()
 		switch cmdType {
 		case C_ARITHMETIC:
@@ -75,6 +71,23 @@ func main() {
 	fmt.Println("translator exit successfully")
 }
 
+//**********************************************utils****************************************************************//
+
+func parsePath(path string) (string, string, string, bool) {
+	fileName := filepath.Base(path)
+	fileExt := filepath.Ext(path)
+	idx := strings.LastIndexByte(fileName, '.')
+	if idx == -1 {
+		log.Fatal("invalid file")
+	}
+	pureName := fileName[:idx]
+	fileDir := filepath.Dir(path)
+	isFile := fileName[0] != '.' && fileName[0] != '/'
+	return fileDir, pureName, fileExt, isFile
+}
+
+//*******************************************************************************************************************//
+
 //Parser: parses each VM command into its lexical elements
 type Parser struct {
 	input           *bufio.Scanner
@@ -84,7 +97,7 @@ type Parser struct {
 	var_arg2        int
 }
 
-func (p Parser) hasMoreCommands() bool {
+func (p *Parser) hasMoreCommands() bool {
 	// add currentCmd as condition to realize idempotent
 	for p.currentCmd == "" && p.input.Scan() {
 		str := strings.Trim(p.input.Text(), " ")
@@ -103,13 +116,13 @@ func (p Parser) hasMoreCommands() bool {
 }
 
 // read next command from input and treat it as current command
-func (p Parser) advance() {
+func (p *Parser) advance() {
 	if p.currentCmd == "" {
 		log.Fatalln("inoke incorrectly advance()")
 	}
 	var err error
-	cmd := p.var_commandType
-	p.var_commandType = ""
+	cmd := p.currentCmd
+	p.currentCmd = ""
 	// splits the string s around each instance of one or more consecutive white space
 	compnents := strings.Fields(cmd)
 	// identify var_commandType
@@ -137,7 +150,7 @@ func (p Parser) advance() {
 }
 
 // return the type of current command (C_ARITHMETIC represents all the arithmetic/logic commands)
-func (p Parser) commandType() string {
+func (p *Parser) commandType() string {
 	if p.var_commandType == "" {
 		log.Fatalln("inoke incorrectly commandType()")
 	}
@@ -147,7 +160,7 @@ func (p Parser) commandType() string {
 // return the first argument of current command.
 // if command type is C_ARITHMETIC(add, sub, etc.) return itself (because it don't has arguments)
 // Should not be called if current command is C_RETURN.
-func (p Parser) arg1() string {
+func (p *Parser) arg1() string {
 	if p.var_commandType == C_RETURN {
 		log.Fatalln("inoke incorrectly arg1()")
 	}
@@ -156,9 +169,9 @@ func (p Parser) arg1() string {
 
 // return the second argument of current command. Should be called
 // only if current command is C_POP, C_PUSH, C_CALL or C_FUNCTION
-func (p Parser) arg2() int {
-	if p.var_commandType == C_POP || p.var_commandType == C_PUSH ||
-		p.var_commandType == C_CALL || p.var_commandType == C_FUNCTION {
+func (p *Parser) arg2() int {
+	if p.var_commandType != C_POP && p.var_commandType != C_PUSH &&
+		p.var_commandType != C_CALL && p.var_commandType != C_FUNCTION {
 		log.Fatalln("inoke incorrectly arg2()")
 	}
 	return p.var_arg2
