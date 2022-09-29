@@ -1,0 +1,10 @@
+go run VMtranslator.go StackArithmetic/SimpleAdd/SimpleAdd.vm 
+
+go run VMtranslator.go StackArithmetic/StackTest/StackTest.vm 
+
+go run VMtranslator.go MemoryAccess/StaticTest/StaticTest.vm
+
+go run VMtranslator.go MemoryAccess/BasicTest/BasicTest.vm
+
+go run VMtranslator.go MemoryAccess/PointerTest/PointerTest.vm
+

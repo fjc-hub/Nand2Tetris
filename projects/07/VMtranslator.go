@@ -140,7 +140,7 @@ func (p *Parser) advance() {
 		}
 	case "add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not":
 		p.var_commandType = C_ARITHMETIC
-		p.var_arg1 = compnents[1]
+		p.var_arg1 = compnents[0]
 	case "return":
 		p.var_commandType = C_RETURN
 	default:
@@ -186,7 +186,7 @@ type CodeWriter struct {
 }
 
 // write to the output file the assembly code that implements the given arithmetic command
-func (c CodeWriter) writeArithmetic(command string) {
+func (c *CodeWriter) writeArithmetic(command string) {
 	switch command {
 	case "add":
 		c.output.WriteString(`
@@ -218,12 +218,17 @@ func (c CodeWriter) writeArithmetic(command string) {
 			AM=M-1
 			D=M
 			A=A-1
+			D=M-D
 			@eq.true.%v
-			M-D;JEQ
+			D;JEQ
+			@SP
+			A=M-1
 			M=0
 			@eq.skip.%v
 			0; JMP
 			(eq.true.%v)
+			@SP
+			A=M-1
 			M=-1
 			(eq.skip.%v)
 		`, cnt, cnt, cnt, cnt),
@@ -236,12 +241,17 @@ func (c CodeWriter) writeArithmetic(command string) {
 			AM=M-1
 			D=M
 			A=A-1
+			D=M-D
 			@gt.true.%v
-			M-D;JGT
+			D;JGT
+			@SP
+			A=M-1
 			M=0
 			@gt.skip.%v
 			0; JMP
 			(gt.true.%v)
+			@SP
+			A=M-1
 			M=-1
 			(gt.skip.%v)
 		`, cnt, cnt, cnt, cnt),
@@ -254,12 +264,17 @@ func (c CodeWriter) writeArithmetic(command string) {
 			AM=M-1
 			D=M
 			A=A-1
+			D=M-D
 			@lt.true.%v
-			M-D;JLT
+			D;JLT
+			@SP
+			A=M-1
 			M=0
 			@lt.skip.%v
 			0; JMP
 			(lt.true.%v)
+			@SP
+			A=M-1
 			M=-1
 			(lt.skip.%v)
 		`, cnt, cnt, cnt, cnt),
@@ -286,16 +301,14 @@ func (c CodeWriter) writeArithmetic(command string) {
 			A=M-1
 			M=!M
 		`)
+	default:
+		log.Fatalf("writeArithmetic: invalid command %v", command)
 	}
-	c.output.WriteString(`
-		@SP
-		M=M+1
-	`)
 }
 
 // write to the output file the assembly code that implements the given arithmetic command,
 // where command is C_PUSH
-func (c CodeWriter) writePush(segment string, index int) {
+func (c *CodeWriter) writePush(segment string, index int) {
 	switch segment {
 	case "argument":
 		c.output.WriteString(fmt.Sprintf(`
@@ -303,83 +316,71 @@ func (c CodeWriter) writePush(segment string, index int) {
 			D=A
 			@ARG
 			A=M+D
-			D=M
-		`, index))
+			D=M`, index))
 	case "local":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
 			D=A
 			@LCL
 			A=M+D
-			D=M
-		`, index))
+			D=M`, index))
 	case "static":
-		cnt := strconv.Itoa(c.static_cnt)
-		c.static_cnt++
+		idx := strconv.Itoa(index)
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
-			D=A
-			@%v
-			A=M+D
-			D=M
-		`, index, c.fileName+cnt))
+			D=M`, c.fileName+"."+idx))
 	case "constant":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
-			D=A
-		`, index))
+			D=A`, index))
 	case "this":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
 			D=A
 			@THIS
 			A=M+D
-			D=M
-		`, index))
+			D=M`, index))
 	case "that":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
 			D=A
 			@THAT
 			A=M+D
-			D=M
-		`, index))
+			D=M`, index))
 	case "pointer":
+		str := ""
 		if index == 0 {
-			c.output.WriteString(`
-				@THIS
-				D=M
-			`)
+			str = "THIS"
 		} else {
-			c.output.WriteString(`
-				@THAT
-				D=M
-			`)
+			str = "THAT"
 		}
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=M`, str))
 	case "temp":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
 			D=A
 			@R5
-			A=M+D
-			D=M
-		`, index))
+			A=A+D
+			D=M`, index))
 	default:
 		log.Fatalf("invalid segement %v\n", segment)
 		return
 	}
+	// store the value of D-register into *SP and increase SP word by 1
 	c.output.WriteString(`
-		@SP		// (*sp) = D
-		A=M
-		M=D
-		@SP		// sp++
-		M=M+1 
+			@SP		// (*sp) = D
+			A=M
+			M=D
+			@SP		// sp++
+			M=M+1 
 	`)
 }
 
 // write to the output file the assembly code that implements the given arithmetic command,
 // where command is C_POP
-func (c CodeWriter) writePop(segment string, index int) {
+func (c *CodeWriter) writePop(segment string, index int) {
 	switch segment {
 	case "argument":
 		c.output.WriteString(fmt.Sprintf(`
@@ -396,14 +397,15 @@ func (c CodeWriter) writePop(segment string, index int) {
 			D=M+D
 		`, index))
 	case "static":
-		cnt := strconv.Itoa(c.static_cnt)
-		c.static_cnt++
+		idx := strconv.Itoa(index)
 		c.output.WriteString(fmt.Sprintf(`
+			@SP
+			AM=M-1
+			D=M
 			@%v
-			D=A
-			@%v
-			D=M+D
-		`, index, c.fileName+cnt))
+			M=D
+		`, c.fileName+"."+idx))
+		return
 	case "this":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
@@ -419,40 +421,42 @@ func (c CodeWriter) writePop(segment string, index int) {
 			D=M+D
 		`, index))
 	case "pointer":
+		str := ""
 		if index == 0 {
-			c.output.WriteString(`
-				@THIS
-				D=M
-			`)
+			str = "THIS"
 		} else {
-			c.output.WriteString(`
-				@THAT
-				D=M
-			`)
+			str = "THAT"
 		}
+		c.output.WriteString(fmt.Sprintf(`
+			@%v
+			D=A
+		`, str))
 	case "temp":
 		c.output.WriteString(fmt.Sprintf(`
 			@%v
 			D=A
 			@R5
-			D=M+D
+			D=A+D
 		`, index))
 	default:
 		log.Fatalf("invalid segement %v\n", segment)
 		return
 	}
+	// address computer word by the value of D-register
+	// 按D寄存器中的值寻址（即把D中的值当作指针处理），得到一个字word，然后将栈顶那个字的值复制到这个字word中
 	c.output.WriteString(`
-		@R13
-		M=D
-		@SP
-		AM=M-1
-		D=M
-		@R13
-		M=D
+			@R13
+			M=D
+			@SP
+			AM=M-1
+			D=M
+			@R13
+			A=M
+			M=D
 	`)
 }
 
 // flush and close
-func (c CodeWriter) close() {
+func (c *CodeWriter) close() {
 	c.output.Flush()
 }
