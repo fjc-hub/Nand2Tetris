@@ -1,0 +1,11 @@
+go run VMTranslator.go ./ProgramFlow/BasicLoop/BasicLoop.vm
+
+go run VMTranslator.go ./ProgramFlow/FibonacciSeries/FibonacciSeries.vm
+
+go run VMTranslator.go ./FunctionCalls/SimpleFunction/SimpleFunction.vm
+
+go run VMTranslator.go ./FunctionCalls/FibonacciElement
+
+go run VMTranslator.go ./FunctionCalls/NestedCall
+
+go run VMTranslator.go ./FunctionCalls/StaticsTest
