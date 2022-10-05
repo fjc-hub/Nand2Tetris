@@ -1,0 +1,19 @@
+//**** greedy snake game
+
+class Main {
+    function void main () {
+        var SnakerGame game;
+        let game = SnakerGame.new();
+        do game.run();
+        do SnakerGame.drawG(4075);
+        do SnakerGame.drawA(4076);
+        do SnakerGame.drawM(4077);
+        do SnakerGame.drawE(4078);
+        do SnakerGame.drawO(4081);
+        do SnakerGame.drawV(4082);
+        do SnakerGame.drawE(4083);
+        do SnakerGame.drawR(4084);
+        do game.dispose();
+        return;
+    }
+}

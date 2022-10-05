@@ -1,0 +1,44 @@
+
+
+class Main {
+    function void main() {
+        
+        var int x, y, size;
+        var int address, value, opd, tmp, idx;
+        // do Screen.drawLine(345, 120, 350, 120);
+        do Screen.drawLine(345, 121, 350, 121);
+        let x = 345;
+        let y = 120;
+        let size = 2;
+
+        // unit-test code 
+        let address = 32 * y + (x / 16);
+        let opd = 0;    // a binary value vector
+        let tmp = 1;
+        let idx = 0;
+        let x = x - ((x / 16) * 16); // x %= 16
+        while (idx < 16 ) {
+            if ((idx > x) & (idx < (x + size))) {
+                let opd = opd + tmp;
+            }
+            if (idx = x) {
+                let opd = opd + tmp;
+            }
+            let tmp = tmp * 2;
+            let idx = idx + 1;
+        }
+        while (size > 0) {
+            let value = Memory.peek(16384+address);
+            if (~((opd & value) = opd)) {
+                do Output.printString("false");
+                return ;
+            }    
+            let size = size - 1;
+            let address = address + 32;
+        }
+
+        do Output.printString("true");
+
+        return ;
+    }
+}

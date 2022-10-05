@@ -1,0 +1,882 @@
+function SnakerGame.new 0
+push constant 1
+call Memory.alloc 1
+pop pointer 0
+call Snake.new 0
+pop this 0
+call Utils.drawWall 0
+pop temp 0
+push pointer 0
+return
+function SnakerGame.run 4
+push argument 0
+pop pointer 0
+push constant 0
+pop local 3
+label WHILE_EXP0
+push local 3
+not
+not
+if-goto WHILE_END0
+label WHILE_EXP1
+push local 1
+push constant 0
+eq
+push local 0
+push constant 0
+eq
+and
+not
+if-goto WHILE_END1
+call Keyboard.keyPressed 0
+pop local 1
+push this 0
+call Snake.proceed 1
+pop local 0
+goto WHILE_EXP1
+label WHILE_END1
+push local 0
+push constant 0
+eq
+not
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push constant 0
+not
+pop local 3
+label IF_FALSE0
+push local 1
+push constant 81
+eq
+if-goto IF_TRUE1
+goto IF_FALSE1
+label IF_TRUE1
+push constant 0
+not
+pop local 3
+label IF_FALSE1
+push local 1
+push constant 130
+eq
+if-goto IF_TRUE2
+goto IF_FALSE2
+label IF_TRUE2
+push constant 1
+pop local 2
+label IF_FALSE2
+push local 1
+push constant 133
+eq
+if-goto IF_TRUE3
+goto IF_FALSE3
+label IF_TRUE3
+push constant 2
+pop local 2
+label IF_FALSE3
+push local 1
+push constant 132
+eq
+if-goto IF_TRUE4
+goto IF_FALSE4
+label IF_TRUE4
+push constant 3
+pop local 2
+label IF_FALSE4
+push local 1
+push constant 131
+eq
+if-goto IF_TRUE5
+goto IF_FALSE5
+label IF_TRUE5
+push constant 4
+pop local 2
+label IF_FALSE5
+push this 0
+push local 2
+call Snake.crawl 2
+pop local 0
+push local 0
+push constant 0
+eq
+not
+if-goto IF_TRUE6
+goto IF_FALSE6
+label IF_TRUE6
+push constant 0
+not
+pop local 3
+label IF_FALSE6
+label WHILE_EXP2
+push local 1
+push constant 0
+eq
+not
+push local 0
+push constant 0
+eq
+and
+not
+if-goto WHILE_END2
+call Keyboard.keyPressed 0
+pop local 1
+push this 0
+call Snake.proceed 1
+pop local 0
+goto WHILE_EXP2
+label WHILE_END2
+push local 0
+push constant 0
+eq
+not
+if-goto IF_TRUE7
+goto IF_FALSE7
+label IF_TRUE7
+push constant 0
+not
+pop local 3
+label IF_FALSE7
+goto WHILE_EXP0
+label WHILE_END0
+push constant 0
+return
+function SnakerGame.dispose 0
+push argument 0
+pop pointer 0
+push this 0
+call Snake.dispose 1
+pop temp 0
+push pointer 0
+call Memory.deAlloc 1
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawG 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 1984
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 3168
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 6192
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 12312
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 24588
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 31750
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 31750
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 24590
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 24604
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 28728
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 14448
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 8160
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawA 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 384
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 960
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 1632
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 3696
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 3120
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 7224
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 6168
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 14364
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 12300
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 12300
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 16380
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 8185
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawM 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 2064
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 7224
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 13356
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 26214
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 25158
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 25542
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 24966
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 8185
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawE 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 6
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 32766
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawO 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 896
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 1760
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 7224
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 12300
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 16381
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 16381
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 16381
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 16381
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 16381
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 12300
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 7224
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 1760
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 896
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawV 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 8185
+neg
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 28686
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 14350
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 7196
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 3100
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 3096
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 1584
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 864
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 448
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return
+function SnakerGame.drawR 1
+push constant 16384
+push argument 0
+add
+pop local 0
+push local 0
+push constant 0
+add
+push constant 8190
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 32
+add
+push constant 12294
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 64
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 96
+add
+push constant 24582
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 128
+add
+push constant 12294
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 160
+add
+push constant 8190
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 192
+add
+push constant 30
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 224
+add
+push constant 54
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 256
+add
+push constant 102
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 288
+add
+push constant 198
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 320
+add
+push constant 390
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 352
+add
+push constant 774
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 384
+add
+push constant 1542
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 416
+add
+push constant 3078
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 448
+add
+push constant 14342
+call Memory.poke 2
+pop temp 0
+push local 0
+push constant 480
+add
+push constant 0
+call Memory.poke 2
+pop temp 0
+push constant 0
+return

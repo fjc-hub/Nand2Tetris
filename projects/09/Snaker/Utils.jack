@@ -1,0 +1,82 @@
+
+class Utils {
+
+    // determine whether the rectangle whose top-left vertex is (x, y) , of width size, is pure black pixels
+    function boolean isPureBlack (int x, int y, int size) {
+        var int address, value, opd, tmp, idx;
+        let address = 32 * y + (x / 16);
+        let opd = 0;    // a binary value vector
+        let tmp = 1;
+        let idx = 0;
+        let x = x - ((x / 16) * 16); // x %= 16
+        while (idx < 16 ) {
+            if ((idx > x) & (idx < (x + size))) {
+                let opd = opd + tmp;
+            }
+            if (idx = x) {
+                let opd = opd + tmp;
+            }
+            let tmp = tmp * 2;
+            let idx = idx + 1;
+        }
+        while (size > 0) {
+            let value = Memory.peek(16384+address);
+            if (~((opd & value) = opd)) {
+                return false;
+            }    
+            let size = size - 1;
+            let address = address + 32;
+        }
+
+        return true;
+    }
+
+    function void drawWall() {
+        var int width;
+        let width = 4;
+        do Screen.setColor(true);
+        //
+        do Screen.drawLine(0,0, 511,0);
+        do Screen.drawLine(0,1, 511,1);
+        do Screen.drawLine(0,2, 511,2);
+        do Screen.drawLine(0,3, 511,3);
+        do Screen.drawLine(0,252, 511,252);
+        do Screen.drawLine(0,253, 511,253);
+        do Screen.drawLine(0,254, 511,254);
+        do Screen.drawLine(0,255, 511,255);
+        //
+        do Screen.drawLine(0,0, 0,255);
+        do Screen.drawLine(1,0, 1,255);
+        do Screen.drawLine(2,0, 2,255);
+        do Screen.drawLine(3,0, 3,255);
+        do Screen.drawLine(508,0, 508,255);
+        do Screen.drawLine(509,0, 509,255);
+        do Screen.drawLine(510,0, 510,255);
+        do Screen.drawLine(511,0, 511,255);
+        return ;
+    }
+
+    // return x mod y
+    function int modular(int x, int y) {
+        return x - ((x / y) * y );
+    }
+
+    // Not even pseudo-random. (hahahaha!)  
+    function Food nextFood(int x, int y) {
+        var Food food;
+        let x = x / 4;
+        let y = y / 4;
+        let x = x + 28;
+        let y = y + 14;
+        let x = Utils.modular(x, 128);
+        if (x = 0 | x = 127) {
+            let x = 63;
+        }
+        let y = Utils.modular(y, 64);
+        if (y = 0 | y = 63) {
+            let y = 31;
+        }
+        let food = Food.new(x * 4, y * 4);
+        return food;
+    }
+}

@@ -1,0 +1,314 @@
+function Snake.new 1
+push constant 6
+call Memory.alloc 1
+pop pointer 0
+push constant 80
+push constant 40
+call Block.new 2
+pop local 0
+push constant 3
+pop this 2
+push local 0
+pop this 0
+push local 0
+pop this 1
+push local 0
+call Block.draw 1
+pop temp 0
+push constant 40
+push constant 20
+call Food.new 2
+pop this 3
+push this 3
+call Food.draw 1
+pop temp 0
+push this 3
+call Food.getX 1
+pop this 4
+push this 3
+call Food.getY 1
+pop this 5
+push pointer 0
+return
+function Snake.setTargetX 0
+push argument 0
+pop pointer 0
+push argument 1
+pop this 4
+push constant 0
+return
+function Snake.setTargetY 0
+push argument 0
+pop pointer 0
+push argument 1
+pop this 5
+push constant 0
+return
+function Snake.crawl 1
+push argument 0
+pop pointer 0
+push this 2
+push constant 1
+eq
+push argument 1
+push constant 2
+eq
+and
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push constant 2
+pop this 2
+label IF_FALSE0
+push this 2
+push constant 1
+eq
+push argument 1
+push constant 4
+eq
+and
+if-goto IF_TRUE1
+goto IF_FALSE1
+label IF_TRUE1
+push constant 4
+pop this 2
+label IF_FALSE1
+push this 2
+push constant 2
+eq
+push argument 1
+push constant 3
+eq
+and
+if-goto IF_TRUE2
+goto IF_FALSE2
+label IF_TRUE2
+push constant 3
+pop this 2
+label IF_FALSE2
+push this 2
+push constant 2
+eq
+push argument 1
+push constant 1
+eq
+and
+if-goto IF_TRUE3
+goto IF_FALSE3
+label IF_TRUE3
+push constant 1
+pop this 2
+label IF_FALSE3
+push this 2
+push constant 3
+eq
+push argument 1
+push constant 4
+eq
+and
+if-goto IF_TRUE4
+goto IF_FALSE4
+label IF_TRUE4
+push constant 4
+pop this 2
+label IF_FALSE4
+push this 2
+push constant 3
+eq
+push argument 1
+push constant 2
+eq
+and
+if-goto IF_TRUE5
+goto IF_FALSE5
+label IF_TRUE5
+push constant 2
+pop this 2
+label IF_FALSE5
+push this 2
+push constant 4
+eq
+push argument 1
+push constant 1
+eq
+and
+if-goto IF_TRUE6
+goto IF_FALSE6
+label IF_TRUE6
+push constant 1
+pop this 2
+label IF_FALSE6
+push this 2
+push constant 4
+eq
+push argument 1
+push constant 3
+eq
+and
+if-goto IF_TRUE7
+goto IF_FALSE7
+label IF_TRUE7
+push constant 3
+pop this 2
+label IF_FALSE7
+push pointer 0
+call Snake.proceed 1
+pop local 0
+push local 0
+push constant 0
+eq
+not
+if-goto IF_TRUE8
+goto IF_FALSE8
+label IF_TRUE8
+push constant 1
+neg
+return
+label IF_FALSE8
+push constant 0
+return
+function Snake.proceed 6
+push argument 0
+pop pointer 0
+push this 0
+call Block.getSize 1
+pop local 4
+push constant 50
+call Sys.wait 1
+pop temp 0
+push this 0
+call Block.getX 1
+pop local 2
+push this 0
+call Block.getY 1
+pop local 3
+push this 2
+push constant 1
+eq
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push local 2
+push local 4
+sub
+pop local 2
+label IF_FALSE0
+push this 2
+push constant 2
+eq
+if-goto IF_TRUE1
+goto IF_FALSE1
+label IF_TRUE1
+push local 3
+push local 4
+add
+pop local 3
+label IF_FALSE1
+push this 2
+push constant 3
+eq
+if-goto IF_TRUE2
+goto IF_FALSE2
+label IF_TRUE2
+push local 2
+push local 4
+add
+pop local 2
+label IF_FALSE2
+push this 2
+push constant 4
+eq
+if-goto IF_TRUE3
+goto IF_FALSE3
+label IF_TRUE3
+push local 3
+push local 4
+sub
+pop local 3
+label IF_FALSE3
+push local 2
+push local 3
+push local 4
+call Utils.isPureBlack 3
+pop local 5
+push local 5
+if-goto IF_TRUE4
+goto IF_FALSE4
+label IF_TRUE4
+push constant 1
+neg
+return
+label IF_FALSE4
+push local 2
+push local 3
+call Block.new 2
+pop local 0
+push local 0
+push this 0
+call Block.setNext 2
+pop temp 0
+push this 0
+push local 0
+call Block.setPrev 2
+pop temp 0
+push local 0
+pop this 0
+push this 0
+call Block.draw 1
+pop temp 0
+push this 4
+push local 2
+eq
+push this 5
+push local 3
+eq
+and
+if-goto IF_TRUE5
+goto IF_FALSE5
+label IF_TRUE5
+push this 3
+call Food.erase 1
+pop temp 0
+push this 3
+call Food.dispose 1
+pop temp 0
+push this 4
+push this 5
+call Utils.nextFood 2
+pop this 3
+push this 3
+call Food.draw 1
+pop temp 0
+push this 3
+call Food.getX 1
+pop this 4
+push this 3
+call Food.getY 1
+pop this 5
+push constant 0
+return
+label IF_FALSE5
+push this 1
+call Block.getPrev 1
+pop local 1
+push this 1
+call Block.erase 1
+pop temp 0
+push local 1
+pop this 1
+push constant 0
+return
+function Snake.dispose 0
+push argument 0
+pop pointer 0
+push this 0
+call Block.dispose 1
+pop temp 0
+push this 1
+call Block.dispose 1
+pop temp 0
+push pointer 0
+call Memory.deAlloc 1
+pop temp 0
+push constant 0
+return

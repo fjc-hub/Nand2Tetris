@@ -1,0 +1,63 @@
+// 1.represent the block of the body of the snake
+// 2.represent the target block that leads the snake growing up
+// 3.realize by Bidirectional list
+
+class Block {
+    field int x, y;         // (x, y): top-left vertex
+    field int size;         // the size of square
+    field Block prev, next; // point to previous block and point to following block
+
+    constructor Block new(int Ax, int Ay) {
+        let x = Ax;
+        let y = Ay;
+        let size = 4;
+        return this;
+    }
+
+    method int getX() {
+        return x;
+    }
+
+    method int getY() {
+        return y;
+    }
+
+    method int getSize() {
+        return size;
+    }
+
+    method Block getPrev() {
+        return prev;
+    }
+
+    method Block getNext() {
+        return next;
+    }
+
+    method void setPrev(Block bk) {
+        let prev = bk;
+        return ;
+    }
+
+    method void setNext(Block bk) {
+        let next = bk;
+        return ;
+    }
+
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return ;
+    }
+
+    method void erase() {
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return ;
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return ;
+    }
+}

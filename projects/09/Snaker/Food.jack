@@ -1,0 +1,39 @@
+
+class Food {
+    field int x, y;     // food's position
+    field int size;
+
+    constructor Food new(int Ax, int Ay) {
+        let x = Ax;
+        let y = Ay;
+        let size = 4;
+        return this;
+    }
+
+    method int getX() {
+        return x;
+    }
+
+    method int getY() {
+        return y;
+    }
+
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x+1, y+1, x-1+size, y-1+size);
+        return ;
+    }
+
+    method void erase() {
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return ;
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return ;
+    }
+}

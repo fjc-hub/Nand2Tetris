@@ -1,0 +1,119 @@
+//****** represnet the sprite of the game -- greedy snake
+
+class Snake {
+    field Block head, tail;     // point to the block of the head and tail of the snake
+    field int direction;        // indicate the moving direction the head of snake. 
+                                // 1=left,2=down,3=right,4=up
+    field Food food;            // indicate the target food
+    field int targetX, targetY; // indicate the target food's position. it's the snake's target!
+    
+    constructor Snake new() {
+        // generate snake
+        var Block newBk;
+        let newBk = Block.new(80, 40);
+        let direction = 3;
+        let head = newBk;
+        let tail = newBk;
+        do newBk.draw();
+        // generate food
+        let food = Food.new(40, 20);
+        do food.draw();
+        let targetX = food.getX();
+        let targetY = food.getY();
+        return this;
+    }
+
+    method void setTargetX(int tx) {
+        let targetX = tx;
+        return;
+    }
+
+    method void setTargetY(int ty) {
+        let targetY = ty;
+        return ;
+    }
+
+    // if fail, return -1
+    method int crawl(int newDirec) {
+        var int statusCode;
+
+        // verify direction input and change the moving direction of snake
+        if ((direction = 1) & (newDirec = 2)) { let direction = 2; }
+        if ((direction = 1) & (newDirec = 4)) { let direction = 4; }
+
+        if ((direction = 2) & (newDirec = 3)) { let direction = 3; }
+        if ((direction = 2) & (newDirec = 1)) { let direction = 1; }
+
+        if ((direction = 3) & (newDirec = 4)) { let direction = 4; }
+        if ((direction = 3) & (newDirec = 2)) { let direction = 2; }
+
+        if ((direction = 4) & (newDirec = 1)) { let direction = 1; }
+        if ((direction = 4) & (newDirec = 3)) { let direction = 3; }
+
+        let statusCode = proceed();
+
+        if (~(statusCode = 0)) { return -1; } // -1 = game over
+
+        return 0;
+    }
+
+    // if fail, return -1
+    method int proceed() {
+        var Block newBk, delBk;
+        var int x, y;
+        var int size;
+        var boolean sign;
+
+        let size = head.getSize();
+        // delays the next movement
+        do Sys.wait(50); // too long
+        //
+        let x = head.getX();
+        let y = head.getY();
+        if (direction = 1) { let x = x-size; }
+        if (direction = 2) { let y = y+size; }
+        if (direction = 3) { let x = x+size; }
+        if (direction = 4) { let y = y-size; }
+
+        // determine if the snake will bite itself or hit the wall
+        let sign = Utils.isPureBlack(x, y, size);
+        if (sign) {
+            return -1;
+        }
+
+        // add new head block of the snake
+        let newBk = Block.new(x, y);
+        do newBk.setNext(head);
+        do head.setPrev(newBk);
+        let head = newBk;
+        do head.draw();
+
+        // determine whether the snake has eaten food or not
+        if ((targetX = x) & (targetY = y)) {
+            // erase and recycle the resource of this food
+            do food.erase();
+            do food.dispose();
+            // generate new target food
+            let food = Utils.nextFood(targetX, targetY);
+            do food.draw();
+            let targetX = food.getX();
+            let targetY = food.getY();
+            // return to skip the deletion code snipet, because the snake need growing up
+            return 0;
+        }
+
+        // delete the tail block of the snake
+        let delBk = tail.getPrev();
+        do tail.erase();
+        let tail = delBk; 
+
+        return 0; // 0 = go on
+    }
+
+    method void dispose() {
+        do head.dispose();
+        do tail.dispose(); // It doesn't matter if A and B point to the same address
+        do Memory.deAlloc(this);
+        return ;
+    }
+}
