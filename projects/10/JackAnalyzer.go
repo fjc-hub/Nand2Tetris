@@ -1,8 +1,10 @@
-package jacktokenizer
+package main
 
 import (
 	"bufio"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -20,6 +22,8 @@ var isSymbol map[string]bool
 
 var isKeyword map[string]bool
 
+var escape map[string]string
+
 func init() {
 	isSymbol = map[string]bool{
 		"{": true,
@@ -32,6 +36,7 @@ func init() {
 		",": true,
 		";": true,
 		"+": true,
+		"-": true,
 		"*": true,
 		"/": true,
 		"&": true,
@@ -53,6 +58,7 @@ func init() {
 		"int":         true,
 		"char":        true,
 		"boolean":     true,
+		"void":        true,
 		"true":        true,
 		"false":       true,
 		"null":        true,
@@ -64,7 +70,51 @@ func init() {
 		"while":       true,
 		"return":      true,
 	}
+
+	escape = map[string]string{
+		"<":  "&lt;",
+		">":  "&gt;",
+		"\"": "&quot;",
+		"&":  "&amp;",
+	}
 }
+
+func main() {
+	filePath := os.Args[1]
+	files := readDir(filePath)
+	// dir := filepath.Dir(filePath)
+	baseName := filepath.Base(filePath)
+	output, err := os.OpenFile(baseName+".out.xml", os.O_WRONLY|os.O_CREATE, 777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, file := range files {
+		tokenizer := JackTokenizerConstructor(bufio.NewScanner(file))
+		tokenizer.WriteToXML(bufio.NewWriter(output))
+	}
+}
+
+func readDir(path string) []*os.File {
+	fileExt := filepath.Ext(path)
+	if fileExt == ".jack" {
+		file, _ := os.Open(path)
+		return []*os.File{file}
+	}
+	//
+	filenames, _ := filepath.Glob(path + "/*")
+	ans := []*os.File{}
+	for i := range filenames {
+		ext := filepath.Ext(filenames[i])
+		if ext != ".jack" {
+			continue
+		}
+		file1, _ := os.Open(filenames[i])
+		ans = append(ans, file1)
+	}
+	return ans
+}
+
+//**************************************************************************************************************************//
 
 type JackTokenizer struct {
 	input      *bufio.Scanner
@@ -78,7 +128,7 @@ type JackTokenizer struct {
 	identifier string
 }
 
-func Constructor(input *bufio.Scanner) JackTokenizer {
+func JackTokenizerConstructor(input *bufio.Scanner) JackTokenizer {
 	return JackTokenizer{
 		input: input,
 	}
@@ -90,15 +140,22 @@ func (t *JackTokenizer) HasMoreTokens() bool {
 		return true
 	}
 	isComment := false
+	t.curLine = ""
 	for t.input.Scan() {
 		str := t.input.Text()
+		// trim rear comment
+		idx := strings.Index(str, "//")
+		if idx != -1 {
+			str = str[:idx]
+		}
 		// trim lead empty char and rear empty char
-		str = strings.Trim(str, " ")
+		str = strings.TrimSpace(str)
 		if str == "" {
 			continue
 		}
-		if strings.HasSuffix(str, "*/") {
+		if isComment && strings.HasSuffix(str, "*/") {
 			isComment = false
+			continue
 		}
 		if isComment {
 			continue
@@ -134,21 +191,36 @@ func (t *JackTokenizer) Advance() {
 	token := ""
 	nxt := idx
 	for ; nxt < len(line); nxt++ {
-		if line[nxt] == ' ' || isSymbol[strconv.Itoa(int(line[nxt]))] {
+		if line[nxt] == '"' {
+			nxt++
+			for nxt < len(line) && line[nxt] != '"' {
+				nxt++
+			}
+			nxt++
+			break
+		}
+		if line[nxt] == ' ' || isSymbol[string(line[nxt])] {
 			break
 		}
 	}
 	if idx == nxt { // it must be a symbol
 		nxt++
 	}
-	t.index = nxt
 	token = line[idx:nxt]
+	// update t.index
+	for nxt < len(line) && line[nxt] == ' ' {
+		nxt++
+	}
+	t.index = nxt
 	// process token
 	if isKeyword[token] {
 		t.tokenType = KEYWORD
 		t.keyWord = token
 	} else if isSymbol[token] {
 		t.tokenType = SYMBOL
+		if escape[token] != "" {
+			token = escape[token]
+		}
 		t.symbol = token
 	} else if unicode.IsDigit(rune(token[0])) {
 		t.tokenType = INT_CONST
@@ -164,7 +236,7 @@ func (t *JackTokenizer) Advance() {
 		t.tokenType = IDENTIFIER
 		t.identifier = token
 	} else {
-		log.Fatalf("unknown token: %v \n", token)
+		log.Fatalf("unknown token: %v in %v, index: %v \n", token, t.curLine, t.index)
 	}
 }
 
@@ -219,27 +291,27 @@ func (t *JackTokenizer) StringVal() string {
 }
 
 func (t *JackTokenizer) WriteToXML(output *bufio.Writer) error {
-	output.WriteString("<token>\n")
+	output.WriteString("<tokens>\n")
 	for t.HasMoreTokens() {
 		t.Advance()
 		switch t.TokenType() {
 		case KEYWORD:
 			val := t.KeyWord()
-			output.WriteString("<" + KEYWORD + ">\n" + val + "</" + KEYWORD + ">\n")
+			output.WriteString("<" + KEYWORD + "> " + val + " </" + KEYWORD + ">\n")
 		case SYMBOL:
 			val := t.Symbol()
-			output.WriteString("<" + SYMBOL + ">\n" + val + "</" + SYMBOL + ">\n")
+			output.WriteString("<" + SYMBOL + "> " + val + " </" + SYMBOL + ">\n")
 		case IDENTIFIER:
 			val := t.Identifier()
-			output.WriteString("<" + IDENTIFIER + ">\n" + val + "</" + IDENTIFIER + ">\n")
+			output.WriteString("<" + IDENTIFIER + "> " + val + " </" + IDENTIFIER + ">\n")
 		case INT_CONST:
 			val := strconv.Itoa(t.IntVal())
-			output.WriteString("<" + INT_CONST + ">\n" + val + "</" + INT_CONST + ">\n")
+			output.WriteString("<" + INT_CONST + "> " + val + " </" + INT_CONST + ">\n")
 		case STRING_CONST:
 			val := t.StringVal()
-			output.WriteString("<" + STRING_CONST + ">\n" + val + "</" + STRING_CONST + ">\n")
+			output.WriteString("<" + STRING_CONST + "> " + val + " </" + STRING_CONST + ">\n")
 		}
 	}
-	output.WriteString("<token>\n")
+	output.WriteString("</tokens>\n")
 	return output.Flush()
 }
