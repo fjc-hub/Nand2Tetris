@@ -84,6 +84,27 @@ func main() {
 	files := readDir(filePath)
 	// dir := filepath.Dir(filePath)
 	baseName := filepath.Base(filePath)
+	outputfile, err := os.OpenFile(baseName+".xml", os.O_WRONLY|os.O_CREATE, 777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	output := bufio.NewWriter(outputfile)
+	for _, file := range files {
+		tokenizer := JackTokenizerConstructor(bufio.NewScanner(file))
+		engine := CompilationEngineConstructor(&tokenizer, output)
+		// one .jack file should contain only one class
+		engine.CompileClass()
+	}
+}
+
+//*******************************************************************************************************************//
+//**************************************************** Utils ********************************************************//
+
+func testTokenizer() {
+	filePath := os.Args[1]
+	files := readDir(filePath)
+	// dir := filepath.Dir(filePath)
+	baseName := filepath.Base(filePath)
 	output, err := os.OpenFile(baseName+".out.xml", os.O_WRONLY|os.O_CREATE, 777)
 	if err != nil {
 		log.Fatal(err)
@@ -114,7 +135,8 @@ func readDir(path string) []*os.File {
 	return ans
 }
 
-//**************************************************************************************************************************//
+//*******************************************************************************************************************//
+//************************************************** JackTokenizer **************************************************//
 
 type JackTokenizer struct {
 	input      *bufio.Scanner
@@ -314,4 +336,87 @@ func (t *JackTokenizer) WriteToXML(output *bufio.Writer) error {
 	}
 	output.WriteString("</tokens>\n")
 	return output.Flush()
+}
+
+//*******************************************************************************************************************//
+//************************************************ CompilationEngine ************************************************//
+
+type CompilationEngine struct {
+	output    *bufio.Writer
+	tokenizer *JackTokenizer
+}
+
+func CompilationEngineConstructor(tokenizer *JackTokenizer, output *bufio.Writer) CompilationEngine {
+	return CompilationEngine{
+		output:    output,
+		tokenizer: tokenizer,
+	}
+}
+
+func (c *CompilationEngine) CompileClass() {
+	c.output.WriteString("<class>\n")
+
+	c.output.WriteString("</class>\n")
+}
+
+func (c *CompilationEngine) CompileClassVarDec() {
+
+}
+
+func (c *CompilationEngine) CompileSubroutine() {
+
+}
+
+func (c *CompilationEngine) CompileParameterList() {
+
+}
+
+func (c *CompilationEngine) CompileVarDec() {
+
+}
+
+func (c *CompilationEngine) CompileStatements() {
+
+}
+
+func (c *CompilationEngine) CompileDo() {
+
+}
+
+func (c *CompilationEngine) CompileLet() {
+
+}
+
+func (c *CompilationEngine) CompileWhile() {
+
+}
+
+func (c *CompilationEngine) CompileReturn() {
+
+}
+
+func (c *CompilationEngine) CompileIf() {
+
+}
+
+func (c *CompilationEngine) CompileExpression() {
+
+}
+
+func (c *CompilationEngine) CompileTerm() {
+
+}
+
+func (c *CompilationEngine) CompileExpressionList() {
+
+}
+
+func (c *CompilationEngine) NextToken() {
+	if c.tokenizer.HasMoreTokens() {
+		c.tokenizer.Advance()
+	}
+}
+
+func (c *CompilationEngine) Flush() {
+	c.output.Flush()
 }
