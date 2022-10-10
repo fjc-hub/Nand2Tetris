@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,6 +22,12 @@ const (
 var isSymbol map[string]bool
 
 var isKeyword map[string]bool
+
+var isUnaryOp map[string]bool
+
+var isOp map[string]bool
+
+var isStatePrefix map[string]bool
 
 var escape map[string]string
 
@@ -71,6 +78,31 @@ func init() {
 		"return":      true,
 	}
 
+	isOp = map[string]bool{
+		"+":    true,
+		"-":    true,
+		"*":    true,
+		"/":    true,
+		"&amp": true, // "&"
+		"|":    true,
+		"&lt":  true,
+		"&gt":  true,
+		"=":    true,
+	}
+
+	isUnaryOp = map[string]bool{
+		"-": true,
+		"~": true,
+	}
+
+	isStatePrefix = map[string]bool{
+		"do":     true,
+		"if":     true,
+		"while":  true,
+		"let":    true,
+		"return": true,
+	}
+
 	escape = map[string]string{
 		"<":  "&lt;",
 		">":  "&gt;",
@@ -93,8 +125,11 @@ func main() {
 		tokenizer := JackTokenizerConstructor(bufio.NewScanner(file))
 		engine := CompilationEngineConstructor(&tokenizer, output)
 		// one .jack file should contain only one class
+		engine.NextToken()
 		engine.CompileClass()
+		// engine.Flush()
 	}
+	output.Flush()
 }
 
 //*******************************************************************************************************************//
@@ -148,6 +183,7 @@ type JackTokenizer struct {
 	intVal     int
 	stringVal  string
 	identifier string
+	// flag bool
 }
 
 func JackTokenizerConstructor(input *bufio.Scanner) JackTokenizer {
@@ -156,9 +192,9 @@ func JackTokenizerConstructor(input *bufio.Scanner) JackTokenizer {
 	}
 }
 
-// has more
+// has more (幂等)
 func (t *JackTokenizer) HasMoreTokens() bool {
-	if t.index < len(t.curLine) {
+	if t.index < len(t.curLine) { // t.index == len(t.curLine)时，也可能没有取用或 Advance
 		return true
 	}
 	isComment := false
@@ -271,7 +307,7 @@ func (t *JackTokenizer) TokenType() string {
 // should be called only when TokenType() is KEYWORD
 func (t *JackTokenizer) KeyWord() string {
 	if t.tokenType != KEYWORD {
-		log.Fatalln("KeyWord fail")
+		log.Fatalln("KeyWord fail", t.tokenType)
 	}
 	return t.keyWord
 }
@@ -280,7 +316,7 @@ func (t *JackTokenizer) KeyWord() string {
 // should be called only when TokenType() is SYMBOL
 func (t *JackTokenizer) Symbol() string {
 	if t.tokenType != SYMBOL {
-		log.Fatalln("Symbol fail")
+		log.Fatalln("Symbol fail", t.tokenType)
 	}
 	return t.symbol
 }
@@ -354,119 +390,363 @@ func CompilationEngineConstructor(tokenizer *JackTokenizer, output *bufio.Writer
 }
 
 func (c *CompilationEngine) CompileClass() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileClass fail")
+	}
 	c.output.WriteString("<class>\n")
-	c.CompileTerm() //  class
-	c.CompileTerm() //  className
-	c.CompileTerm() //  {
-	c.CompileClassVarDec()
-	c.CompileSubroutine()
-	c.CompileTerm() //  }
+	c.WriteKeyword()    //  class
+	c.writeIdentifier() //  className
+	c.WriteSymbol()     //  {
+	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == KEYWORD {
+		token := c.tokenizer.KeyWord()
+		if token != "static" && token != "field" {
+			break
+		}
+		c.CompileClassVarDec()
+	}
+	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == KEYWORD {
+		token := c.tokenizer.KeyWord()
+		if token != "constructor" && token != "function" && token != "method" {
+			break
+		}
+		c.CompileSubroutine()
+	}
+	c.WriteSymbol() //  }
 	c.output.WriteString("</class>\n")
 }
 
 func (c *CompilationEngine) CompileClassVarDec() {
-	c.output.WriteString("<classVarDec>\n")
-	c.CompileTerm() //  static | field
-	c.CompileTerm() //  type(int | char | boolean | className)
-	c.CompileTerm() //  varName
-	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
-		c.CompileTerm() //  ,
-		c.CompileTerm() //  varName
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileClassVarDec fail")
 	}
+	c.output.WriteString("<classVarDec>\n")
+	c.WriteKeyword()    //  static | field
+	c.WriteType()       //  type(int | char | boolean | className)
+	c.writeIdentifier() //  varName
+	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
+		c.WriteSymbol()     //  ,
+		c.writeIdentifier() //  varName
+	}
+	c.WriteSymbol() //  ;
 	c.output.WriteString("</classVarDec>\n")
 }
 
 func (c *CompilationEngine) CompileSubroutine() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileSubroutine fail")
+	}
 	c.output.WriteString("<subroutineDec>\n")
-	c.CompileTerm() //  constructor | function | method
-	c.CompileTerm() //  void | type(int | char | boolean | className)
-	c.CompileTerm() //  subroutineName
-	c.CompileTerm() //  (
+	c.WriteKeyword() //  constructor | function | method
+	//  void | type(int | char | boolean | className)
+	if c.tokenizer.TokenType() == KEYWORD && c.tokenizer.KeyWord() == "void" {
+		c.WriteKeyword()
+	} else {
+		c.WriteType()
+	}
+	c.writeIdentifier() //  subroutineName
+	c.WriteSymbol()     //  (
 	c.CompileParameterList()
-	c.CompileTerm() //  )
-	c.CompileTerm() //  {
-	c.CompileVarDec()
+	c.WriteSymbol() //  )
+	c.WriteSymbol() //  {
+	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == KEYWORD {
+		token := c.tokenizer.KeyWord()
+		if token != "var" {
+			break
+		}
+		c.CompileVarDec()
+	}
 	c.CompileStatements()
-	c.CompileTerm() //  }
+	c.WriteSymbol() //  }
 	c.output.WriteString("</subroutineDec>\n")
 }
 
 func (c *CompilationEngine) CompileParameterList() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileParameterList fail")
+	}
 	c.output.WriteString("<parameterList>\n")
 	if c.tokenizer.TokenType() == IDENTIFIER ||
 		(c.tokenizer.TokenType() == SYMBOL &&
 			(c.tokenizer.Symbol() == "int" || c.tokenizer.Symbol() == "char" || c.tokenizer.Symbol() == "boolean")) {
-		c.CompileTerm() //  type
-		c.CompileTerm() //  varName
+		c.WriteType()       //  type
+		c.writeIdentifier() //  varName
 		for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
-			c.CompileTerm() //  ,
-			c.CompileTerm() //  type
-			c.CompileTerm() //  varName
+			c.WriteSymbol()     //  ,
+			c.WriteType()       //  type
+			c.writeIdentifier() //  varName
 		}
 	}
 	c.output.WriteString("</parameterList>\n")
 }
 
 func (c *CompilationEngine) CompileVarDec() {
-	c.output.WriteString("<varDec>\n")
-	c.CompileTerm() //  var
-	c.CompileTerm() //  type
-	c.CompileTerm() //  varName
-	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
-		c.CompileTerm() //  ,
-		c.CompileTerm() //  varName
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileVarDec fail")
 	}
+	c.output.WriteString("<varDec>\n")
+	c.WriteKeyword()    //  var
+	c.WriteType()       //  type
+	c.writeIdentifier() //  varName
+	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
+		c.WriteSymbol()     //  ,
+		c.writeIdentifier() //  varName
+	}
+	c.WriteSymbol() //  ;
 	c.output.WriteString("</varDec>\n")
 }
 
 func (c *CompilationEngine) CompileStatements() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileStatements fail")
+	}
 	c.output.WriteString("<statements>\n")
-	token := c.tokenizer.KeyWord()
-	switch token {
-	case "do":
-	case "let":
-	case "while":
-	case "if":
-	case "return":
+	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == KEYWORD {
+		token := c.tokenizer.KeyWord()
+		if !isStatePrefix[token] {
+			break
+		}
+		switch token {
+		case "do":
+			c.CompileDo()
+		case "let":
+			c.CompileLet()
+		case "while":
+			c.CompileWhile()
+		case "if":
+			c.CompileIf()
+		case "return":
+			c.CompileReturn()
+		}
 	}
 	c.output.WriteString("</statements>\n")
 }
 
 func (c *CompilationEngine) CompileDo() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileDo fail")
+	}
+	c.output.WriteString("<doStatement>\n")
+	c.WriteKeyword()      //  do
+	c.CompileExpression() //  subroutineCall
+	c.WriteSymbol()       //  ;
+	c.output.WriteString("</doStatement>\n")
 }
 
 func (c *CompilationEngine) CompileLet() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileLet fail")
+	}
+	c.output.WriteString("<letStatement>\n")
+	c.WriteKeyword()    //  let
+	c.writeIdentifier() //  varName
+	if c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "[" {
+		c.WriteSymbol() //  [
+		c.CompileExpression()
+		c.WriteSymbol() //  ]
+	}
+	c.WriteSymbol() //  =
+	c.CompileExpression()
+	c.WriteSymbol() //  ;
+	c.output.WriteString("</letStatement>\n")
 }
 
 func (c *CompilationEngine) CompileWhile() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileWhile fail")
+	}
+	c.output.WriteString("<whileStatement>\n")
+	c.WriteKeyword() //  while
+	c.WriteSymbol()  //  (
+	c.CompileExpression()
+	c.WriteSymbol() //  )
+	c.WriteSymbol() // {
+	c.CompileStatements()
+	c.WriteSymbol() // }
+	c.output.WriteString("</whileStatement>\n")
 }
 
 func (c *CompilationEngine) CompileReturn() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileReturn fail")
+	}
+	c.output.WriteString("<returnStatement>\n")
+	c.WriteKeyword() //  return
+	if !(c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == ";") {
+		c.CompileExpression()
+	}
+	c.CompileTerm() //  ;
+	c.output.WriteString("</returnStatement>\n")
 }
 
 func (c *CompilationEngine) CompileIf() {
-
-}
-
-func (c *CompilationEngine) CompileExpression() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileIf fail")
+	}
+	c.output.WriteString("<ifStatement>\n")
+	c.WriteKeyword() //  if
+	c.WriteSymbol()  //  (
+	c.CompileExpression()
+	c.WriteSymbol() //  )
+	c.WriteSymbol() //  {
+	c.CompileStatements()
+	c.WriteSymbol() //  }
+	if c.tokenizer.TokenType() == KEYWORD && c.tokenizer.KeyWord() == "else" {
+		c.WriteKeyword() //  else
+		c.WriteSymbol()  //  {
+		c.CompileStatements()
+		c.WriteSymbol() //  }
+	}
+	c.output.WriteString("</ifStatement>\n")
 }
 
 func (c *CompilationEngine) CompileTerm() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileTerm fail")
+	}
+	c.output.WriteString("<term>\n")
+	tokenType := c.tokenizer.TokenType()
+	switch tokenType {
+	case SYMBOL:
+		token := c.tokenizer.Symbol()
+		c.NextToken()
+		c.output.WriteString(fmt.Sprintf("<symbol> %s </symbol>\n", token))
+		if isUnaryOp[token] {
+			// unaryOp must be followed by term
+			c.CompileTerm()
+		} else if token == "(" {
+			c.CompileExpression()
+			c.NextToken() //  )
+			c.output.WriteString("<symbol> ) </symbol>\n")
+		}
+	case INT_CONST:
+		token := c.tokenizer.IntVal()
+		c.NextToken()
+		c.output.WriteString(fmt.Sprintf("<integerConstant> %v </integerConstant>\n", token))
+	case STRING_CONST:
+		token := c.tokenizer.StringVal()
+		c.NextToken()
+		c.output.WriteString(fmt.Sprintf("<stringConstant> %s </stringConstant>\n", token))
+	case KEYWORD:
+		token := c.tokenizer.KeyWord()
+		// asset token in (true, false, null, this)
+		c.NextToken()
+		c.output.WriteString(fmt.Sprintf("<keyword> %s </keyword>\n", token))
+	case IDENTIFIER:
+		token0 := c.tokenizer.Identifier()
+		c.NextToken()
+		c.output.WriteString(fmt.Sprintf("<identifier> %s </identifier>\n", token0))
+		// assert c.tokenizer.HasMoreToken() == true, there is at least a ';' to follow
+		tokenType1 := c.tokenizer.TokenType()
+		if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "[" { //   varName[ expression ]
+			c.output.WriteString("<symbol> [ </symbol>\n")
+			c.NextToken() //  [
+			c.CompileExpression()
+			c.NextToken() //  ]
+			c.output.WriteString("<symbol> ] </symbol>\n")
+		} else if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "(" { //  subroutineCall case 1
+			// ( expressionList )
+			c.output.WriteString("<symbol> ( </symbol>\n")
+			c.NextToken() //  (
+			c.CompileExpressionList()
+			c.NextToken() //  )
+			c.output.WriteString("<symbol> ) </symbol>\n")
+		} else if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "." { //  subroutineCall case 2
+			// .subroutineName
+			c.output.WriteString("<symbol> . </symbol>\n")
+			c.NextToken() //  .
+			subroutineName := c.tokenizer.Identifier()
+			c.output.WriteString(fmt.Sprintf("<identifier> %s </identifier>\n", subroutineName))
+			c.NextToken()
+			// ( expressionList )
+			c.output.WriteString("<symbol> ( </symbol>\n")
+			c.NextToken() //  (
+			c.CompileExpressionList()
+			c.NextToken() //  )
+			c.output.WriteString("<symbol> ) </symbol>\n")
+		}
+	}
+	c.output.WriteString("</term>\n")
+}
 
+func (c *CompilationEngine) CompileExpression() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileExpression fail")
+	}
+	c.output.WriteString("<expression>\n")
+	c.CompileTerm()
+	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == SYMBOL {
+		token := c.tokenizer.Symbol()
+		if !isOp[token] {
+			break
+		}
+		c.output.WriteString(fmt.Sprintf("<symbol> %s </symbol>\n", token))
+		c.NextToken()
+		c.CompileTerm()
+	}
+	c.output.WriteString("</expression>\n")
 }
 
 func (c *CompilationEngine) CompileExpressionList() {
-
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("CompileExpressionList fail")
+	}
+	c.output.WriteString("<expressionList>\n")
+	if c.tokenizer.TokenType() != SYMBOL || c.tokenizer.Symbol() != ")" {
+		c.CompileExpression()
+		for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == "," {
+			c.output.WriteString("<symbol> , </symbol>\n")
+			c.NextToken() //  ,
+			c.CompileExpression()
+		}
+	}
+	c.output.WriteString("</expressionList>\n")
 }
 
 func (c *CompilationEngine) NextToken() {
 	if c.tokenizer.HasMoreTokens() {
 		c.tokenizer.Advance()
+	} else {
+		log.Fatal("NextToken fail")
+	}
+}
+
+func (c *CompilationEngine) WriteSymbol() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("WriteSymbol fail")
+	}
+	token := c.tokenizer.Symbol()
+	c.output.WriteString(fmt.Sprintf("<symbol> %s </symbol>\n", token))
+	c.NextToken()
+}
+
+func (c *CompilationEngine) writeIdentifier() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("writeIdentifier fail")
+	}
+	token := c.tokenizer.Identifier()
+	c.output.WriteString(fmt.Sprintf("<identifier> %s </identifier>\n", token))
+	c.NextToken()
+}
+
+func (c *CompilationEngine) WriteKeyword() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("WriteKeyword fail")
+	}
+	token := c.tokenizer.KeyWord()
+	c.output.WriteString(fmt.Sprintf("<keyword> %s </keyword>\n", token))
+	c.NextToken()
+}
+
+func (c *CompilationEngine) WriteType() {
+	if !c.tokenizer.HasMoreTokens() {
+		log.Fatal("WriteType fail")
+	}
+	if c.tokenizer.TokenType() == KEYWORD {
+		c.WriteKeyword()
+	} else if c.tokenizer.TokenType() == IDENTIFIER {
+		c.writeIdentifier()
+	} else {
+		log.Fatal("WriteType encounter invalid token", c.tokenizer.TokenType())
 	}
 }
 
