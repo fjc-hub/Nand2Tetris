@@ -355,28 +355,81 @@ func CompilationEngineConstructor(tokenizer *JackTokenizer, output *bufio.Writer
 
 func (c *CompilationEngine) CompileClass() {
 	c.output.WriteString("<class>\n")
-
+	c.CompileTerm() //  class
+	c.CompileTerm() //  className
+	c.CompileTerm() //  {
+	c.CompileClassVarDec()
+	c.CompileSubroutine()
+	c.CompileTerm() //  }
 	c.output.WriteString("</class>\n")
 }
 
 func (c *CompilationEngine) CompileClassVarDec() {
-
+	c.output.WriteString("<classVarDec>\n")
+	c.CompileTerm() //  static | field
+	c.CompileTerm() //  type(int | char | boolean | className)
+	c.CompileTerm() //  varName
+	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
+		c.CompileTerm() //  ,
+		c.CompileTerm() //  varName
+	}
+	c.output.WriteString("</classVarDec>\n")
 }
 
 func (c *CompilationEngine) CompileSubroutine() {
-
+	c.output.WriteString("<subroutineDec>\n")
+	c.CompileTerm() //  constructor | function | method
+	c.CompileTerm() //  void | type(int | char | boolean | className)
+	c.CompileTerm() //  subroutineName
+	c.CompileTerm() //  (
+	c.CompileParameterList()
+	c.CompileTerm() //  )
+	c.CompileTerm() //  {
+	c.CompileVarDec()
+	c.CompileStatements()
+	c.CompileTerm() //  }
+	c.output.WriteString("</subroutineDec>\n")
 }
 
 func (c *CompilationEngine) CompileParameterList() {
-
+	c.output.WriteString("<parameterList>\n")
+	if c.tokenizer.TokenType() == IDENTIFIER ||
+		(c.tokenizer.TokenType() == SYMBOL &&
+			(c.tokenizer.Symbol() == "int" || c.tokenizer.Symbol() == "char" || c.tokenizer.Symbol() == "boolean")) {
+		c.CompileTerm() //  type
+		c.CompileTerm() //  varName
+		for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
+			c.CompileTerm() //  ,
+			c.CompileTerm() //  type
+			c.CompileTerm() //  varName
+		}
+	}
+	c.output.WriteString("</parameterList>\n")
 }
 
 func (c *CompilationEngine) CompileVarDec() {
-
+	c.output.WriteString("<varDec>\n")
+	c.CompileTerm() //  var
+	c.CompileTerm() //  type
+	c.CompileTerm() //  varName
+	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
+		c.CompileTerm() //  ,
+		c.CompileTerm() //  varName
+	}
+	c.output.WriteString("</varDec>\n")
 }
 
 func (c *CompilationEngine) CompileStatements() {
-
+	c.output.WriteString("<statements>\n")
+	token := c.tokenizer.KeyWord()
+	switch token {
+	case "do":
+	case "let":
+	case "while":
+	case "if":
+	case "return":
+	}
+	c.output.WriteString("</statements>\n")
 }
 
 func (c *CompilationEngine) CompileDo() {
