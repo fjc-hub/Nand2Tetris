@@ -79,15 +79,15 @@ func init() {
 	}
 
 	isOp = map[string]bool{
-		"+":    true,
-		"-":    true,
-		"*":    true,
-		"/":    true,
-		"&amp": true, // "&"
-		"|":    true,
-		"&lt":  true,
-		"&gt":  true,
-		"=":    true,
+		"+":     true,
+		"-":     true,
+		"*":     true,
+		"/":     true,
+		"&amp;": true, // "&"
+		"|":     true,
+		"&lt;":  true,
+		"&gt;":  true,
+		"=":     true,
 	}
 
 	isUnaryOp = map[string]bool{
@@ -177,13 +177,13 @@ type JackTokenizer struct {
 	input      *bufio.Scanner
 	curLine    string // current line (without lead or rear space)
 	index      int
+	lastIdx    int // curLine[index:lastIdx)
 	tokenType  string
 	keyWord    string
 	symbol     string
 	intVal     int
 	stringVal  string
 	identifier string
-	// flag bool
 }
 
 func JackTokenizerConstructor(input *bufio.Scanner) JackTokenizer {
@@ -194,7 +194,7 @@ func JackTokenizerConstructor(input *bufio.Scanner) JackTokenizer {
 
 // has more (幂等)
 func (t *JackTokenizer) HasMoreTokens() bool {
-	if t.index < len(t.curLine) { // t.index == len(t.curLine)时，也可能没有取用或 Advance
+	if t.index < t.lastIdx || t.lastIdx < len(t.curLine) { // [index, lastIdx)
 		return true
 	}
 	isComment := false
@@ -231,6 +231,7 @@ func (t *JackTokenizer) HasMoreTokens() bool {
 		// assert str must a valid command
 		t.curLine = str
 		t.index = 0
+		t.lastIdx = 0
 		break
 	}
 	if len(t.curLine) == 0 {
@@ -241,12 +242,19 @@ func (t *JackTokenizer) HasMoreTokens() bool {
 
 // move cursor to point to next Token
 func (t *JackTokenizer) Advance() {
-	if t.index >= len(t.curLine) {
-		log.Fatalln("Advance fail")
+	if t.lastIdx >= len(t.curLine) {
+		t.index = t.lastIdx
+		if t.HasMoreTokens() {
+			t.Advance()
+		}
+		return
 	}
 	// acquire token
-	idx, line := t.index, t.curLine
 	token := ""
+	idx, line := t.lastIdx, t.curLine
+	for idx < len(line) && line[idx] == ' ' {
+		idx++
+	}
 	nxt := idx
 	for ; nxt < len(line); nxt++ {
 		if line[nxt] == '"' {
@@ -265,11 +273,9 @@ func (t *JackTokenizer) Advance() {
 		nxt++
 	}
 	token = line[idx:nxt]
-	// update t.index
-	for nxt < len(line) && line[nxt] == ' ' {
-		nxt++
-	}
-	t.index = nxt
+	// update t.index, t.lastIdx
+	t.index = idx
+	t.lastIdx = nxt
 	// process token
 	if isKeyword[token] {
 		t.tokenType = KEYWORD
@@ -447,6 +453,7 @@ func (c *CompilationEngine) CompileSubroutine() {
 	c.WriteSymbol()     //  (
 	c.CompileParameterList()
 	c.WriteSymbol() //  )
+	c.output.WriteString("<subroutineBody>\n")
 	c.WriteSymbol() //  {
 	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == KEYWORD {
 		token := c.tokenizer.KeyWord()
@@ -457,6 +464,7 @@ func (c *CompilationEngine) CompileSubroutine() {
 	}
 	c.CompileStatements()
 	c.WriteSymbol() //  }
+	c.output.WriteString("</subroutineBody>\n")
 	c.output.WriteString("</subroutineDec>\n")
 }
 
@@ -466,8 +474,8 @@ func (c *CompilationEngine) CompileParameterList() {
 	}
 	c.output.WriteString("<parameterList>\n")
 	if c.tokenizer.TokenType() == IDENTIFIER ||
-		(c.tokenizer.TokenType() == SYMBOL &&
-			(c.tokenizer.Symbol() == "int" || c.tokenizer.Symbol() == "char" || c.tokenizer.Symbol() == "boolean")) {
+		(c.tokenizer.TokenType() == KEYWORD &&
+			(c.tokenizer.KeyWord() == "int" || c.tokenizer.KeyWord() == "char" || c.tokenizer.KeyWord() == "boolean")) {
 		c.WriteType()       //  type
 		c.writeIdentifier() //  varName
 		for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
@@ -526,9 +534,34 @@ func (c *CompilationEngine) CompileDo() {
 		log.Fatal("CompileDo fail")
 	}
 	c.output.WriteString("<doStatement>\n")
-	c.WriteKeyword()      //  do
-	c.CompileExpression() //  subroutineCall
-	c.WriteSymbol()       //  ;
+	c.WriteKeyword() //  do
+	//  subroutineCall
+	token0 := c.tokenizer.Identifier()
+	c.NextToken()
+	c.output.WriteString(fmt.Sprintf("<identifier> %s </identifier>\n", token0))
+	tokenType1 := c.tokenizer.TokenType()
+	if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "(" { //  subroutineCall case 1
+		// ( expressionList )
+		c.output.WriteString("<symbol> ( </symbol>\n")
+		c.NextToken() //  (
+		c.CompileExpressionList()
+		c.NextToken() //  )
+		c.output.WriteString("<symbol> ) </symbol>\n")
+	} else if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "." { //  subroutineCall case 2
+		// .subroutineName
+		c.output.WriteString("<symbol> . </symbol>\n")
+		c.NextToken() //  .
+		subroutineName := c.tokenizer.Identifier()
+		c.output.WriteString(fmt.Sprintf("<identifier> %s </identifier>\n", subroutineName))
+		c.NextToken()
+		// ( expressionList )
+		c.output.WriteString("<symbol> ( </symbol>\n")
+		c.NextToken() //  (
+		c.CompileExpressionList()
+		c.NextToken() //  )
+		c.output.WriteString("<symbol> ) </symbol>\n")
+	}
+	c.WriteSymbol() //  ;
 	c.output.WriteString("</doStatement>\n")
 }
 
@@ -574,7 +607,7 @@ func (c *CompilationEngine) CompileReturn() {
 	if !(c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == ";") {
 		c.CompileExpression()
 	}
-	c.CompileTerm() //  ;
+	c.WriteSymbol() //  ;
 	c.output.WriteString("</returnStatement>\n")
 }
 
@@ -675,7 +708,7 @@ func (c *CompilationEngine) CompileExpression() {
 	c.output.WriteString("<expression>\n")
 	c.CompileTerm()
 	for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == SYMBOL {
-		token := c.tokenizer.Symbol()
+		token := c.tokenizer.Symbol() //  op
 		if !isOp[token] {
 			break
 		}
@@ -693,7 +726,7 @@ func (c *CompilationEngine) CompileExpressionList() {
 	c.output.WriteString("<expressionList>\n")
 	if c.tokenizer.TokenType() != SYMBOL || c.tokenizer.Symbol() != ")" {
 		c.CompileExpression()
-		for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == "," {
+		for c.tokenizer.HasMoreTokens() && c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
 			c.output.WriteString("<symbol> , </symbol>\n")
 			c.NextToken() //  ,
 			c.CompileExpression()
