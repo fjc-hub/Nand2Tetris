@@ -113,23 +113,26 @@ func init() {
 
 func main() {
 	filePath := os.Args[1]
-	files := readDir(filePath)
+	files, newFiles := readDir(filePath)
 	// dir := filepath.Dir(filePath)
-	baseName := filepath.Base(filePath)
-	outputfile, err := os.OpenFile(baseName+".xml", os.O_WRONLY|os.O_CREATE, 777)
-	if err != nil {
-		log.Fatal(err)
-	}
-	output := bufio.NewWriter(outputfile)
-	for _, file := range files {
+	// baseName := filepath.Base(filePath)
+	for i, file := range files {
 		tokenizer := JackTokenizerConstructor(bufio.NewScanner(file))
+
+		outputfile, err := os.OpenFile(newFiles[i], os.O_WRONLY|os.O_CREATE, 777)
+		if err != nil {
+			log.Fatal(err)
+		}
+		output := bufio.NewWriter(outputfile)
+
 		engine := CompilationEngineConstructor(&tokenizer, output)
 		// one .jack file should contain only one class
 		engine.NextToken()
 		engine.CompileClass()
 		// engine.Flush()
+
+		output.Flush()
 	}
-	output.Flush()
 }
 
 //*******************************************************************************************************************//
@@ -137,7 +140,7 @@ func main() {
 
 func testTokenizer() {
 	filePath := os.Args[1]
-	files := readDir(filePath)
+	files, _ := readDir(filePath)
 	// dir := filepath.Dir(filePath)
 	baseName := filepath.Base(filePath)
 	output, err := os.OpenFile(baseName+".out.xml", os.O_WRONLY|os.O_CREATE, 777)
@@ -150,13 +153,16 @@ func testTokenizer() {
 	}
 }
 
-func readDir(path string) []*os.File {
+func readDir(path string) ([]*os.File, []string) {
 	fileExt := filepath.Ext(path)
 	if fileExt == ".jack" {
 		file, _ := os.Open(path)
-		return []*os.File{file}
+		fileDir := filepath.Dir(path)
+		fileName := strings.TrimSuffix(filepath.Base(path), ".jack")
+		return []*os.File{file}, []string{fileDir + "/" + fileName + ".xml"}
 	}
-	//
+	// path is a directory
+	newFiles := make([]string, 0)
 	filenames, _ := filepath.Glob(path + "/*")
 	ans := []*os.File{}
 	for i := range filenames {
@@ -166,8 +172,10 @@ func readDir(path string) []*os.File {
 		}
 		file1, _ := os.Open(filenames[i])
 		ans = append(ans, file1)
+		fileName := strings.TrimSuffix(filenames[i], ".jack") + ".xml"
+		newFiles = append(newFiles, fileName)
 	}
-	return ans
+	return ans, newFiles
 }
 
 //*******************************************************************************************************************//
