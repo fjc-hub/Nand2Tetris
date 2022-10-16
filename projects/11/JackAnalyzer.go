@@ -56,6 +56,8 @@ var escape map[string]string
 
 var kind2Seg map[string]string
 
+var isBuiltInClass map[string]bool
+
 func init() {
 	isSymbol = map[string]bool{
 		"{": true,
@@ -140,6 +142,17 @@ func init() {
 		"arg":    "argument",
 		"field":  "this", // can't access a field variable out the class in jack
 		"static": "static",
+	}
+
+	isBuiltInClass = map[string]bool{
+		"Math":     true,
+		"String":   true,
+		"Array":    true,
+		"Output":   true,
+		"Screen":   true,
+		"Keyboard": true,
+		"Memory":   true,
+		"Sys":      true,
 	}
 }
 
@@ -467,11 +480,13 @@ func (c *CompilationEngine) CompileClassVarDec() {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("CompileClassVarDec fail")
 	}
-	c.WriteKeyword()    //  static | field
-	c.WriteType()       //  type(int | char | boolean | className)
+	kindName := c.WriteKeyword() //  static | field
+	typeName := c.WriteType()    //  type(int | char | boolean | className)
+	c.ST.curKind, c.ST.curType = kindName, typeName
 	c.writeIdentifier() //  varName
 	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
-		c.NextToken()       //  ,
+		c.NextToken() //  ,
+		c.ST.curKind, c.ST.curType = kindName, typeName
 		c.writeIdentifier() //  varName
 	}
 	c.NextToken() //  ;
@@ -507,7 +522,7 @@ func (c *CompilationEngine) CompileSubroutine() {
 	//*** function's commands/statements
 	if subroutineType == "constructor" {
 		// extra special logic of constructor: allocate new memory block
-		c.writer.writePush(CONSTANT, nLocals)
+		c.writer.writePush(CONSTANT, c.ST.VarCount(FIELD))
 		c.writer.writeCall("Memory.alloc", 1)
 		c.writer.writePop(POINTER, 0)
 	} else if subroutineType == "method" {
@@ -526,13 +541,13 @@ func (c *CompilationEngine) CompileParameterList() {
 	if c.tokenizer.TokenType() == IDENTIFIER ||
 		(c.tokenizer.TokenType() == KEYWORD &&
 			(c.tokenizer.KeyWord() == "int" || c.tokenizer.KeyWord() == "char" || c.tokenizer.KeyWord() == "boolean")) {
-		c.ST.curKind = ARG  //  record current symbol's kind
 		c.WriteType()       //  type
+		c.ST.curKind = ARG  //  record current symbol's kind
 		c.writeIdentifier() //  varName
 		for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
 			c.NextToken()       //  ,
-			c.ST.curKind = ARG  //  record current symbol's kind
 			c.WriteType()       //  type
+			c.ST.curKind = ARG  //  record current symbol's kind
 			c.writeIdentifier() //  varName
 		}
 	}
@@ -543,12 +558,15 @@ func (c *CompilationEngine) CompileVarDec() int {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("CompileVarDec fail")
 	}
-	c.WriteKeyword()    //  var
-	c.WriteType()       //  type
+	kindName := c.WriteKeyword() //  var
+	typeName := c.WriteType()    //  type
+	//  record current symbol's kind (be careful)
+	c.ST.curKind, c.ST.curType = kindName, typeName
 	c.writeIdentifier() //  varName
 	cnt := 1
 	for c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "," {
-		c.ST.curKind = VAR  //  record current symbol's kind (be careful)
+		//  record current symbol's kind (be careful)
+		c.ST.curKind, c.ST.curType = kindName, typeName
 		c.NextToken()       //  ,
 		c.writeIdentifier() //  varName
 		cnt++
@@ -587,26 +605,7 @@ func (c *CompilationEngine) CompileDo() {
 	}
 	c.WriteKeyword() //  do
 	//  subroutineCall
-	callName := c.tokenizer.Identifier()
-	nArgs := 0
-	c.NextToken()
-	tokenType1 := c.tokenizer.TokenType()
-	if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "(" { //  subroutineCall case 1
-		// ( expressionList )
-		c.NextToken() //  (
-		nArgs += c.CompileExpressionList()
-		c.NextToken() //  )
-	} else if tokenType1 == SYMBOL && c.tokenizer.Symbol() == "." { //  subroutineCall case 2
-		// .subroutineName
-		c.NextToken() //  .
-		callName += "." + c.tokenizer.Identifier()
-		c.NextToken() // function name
-		// ( expressionList )
-		c.NextToken() //  (
-		nArgs += c.CompileExpressionList()
-		c.NextToken() //  )
-	}
-	c.writer.writeCall(callName, nArgs)
+	c.CompileTerm()
 	c.writer.writePop(TEMP, 0) //  won't assign top-most value of stack
 	c.NextToken()              //  ;
 }
@@ -617,8 +616,10 @@ func (c *CompilationEngine) CompileLet() {
 	}
 	c.WriteKeyword()            //  let
 	name := c.writeIdentifier() //  varName
-	kindName, typeName, index := c.ST.KindOf(name), c.ST.TypeOf(name), c.ST.IndexOf(name)
+	kindName, index := c.ST.KindOf(name), c.ST.IndexOf(name)
+	updateArray := false
 	if c.tokenizer.TokenType() == SYMBOL && c.tokenizer.Symbol() == "[" {
+		updateArray = true
 		// special logic for array literial
 		c.NextToken() //  [
 		c.CompileExpression()
@@ -629,7 +630,7 @@ func (c *CompilationEngine) CompileLet() {
 	}
 	c.NextToken() //  =
 	c.CompileExpression()
-	if typeName == "Array" {
+	if updateArray {
 		// use temp 0 segement store the result of expression in "let varName([exp])? = expression"
 		// the 'that' segment(assigned at step*Ⅰ) be override, when in case of "let a[i] = b[j]"
 		c.writer.writePop(TEMP, 0) // after this operation, the top-most value of stack is the address of array
@@ -646,14 +647,14 @@ func (c *CompilationEngine) CompileWhile() {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("CompileWhile fail")
 	}
-	l1 := fmt.Sprintf("%s.%s.whileL1.%v\n", c.ST.className, c.ST.funcName, c.ST.whileCnt)
-	l2 := fmt.Sprintf("%s.%s.whileL2.%v\n", c.ST.className, c.ST.funcName, c.ST.whileCnt)
+	l1 := fmt.Sprintf("%s.%s.whileL1.%v", c.ST.className, c.ST.funcName, c.ST.whileCnt)
+	l2 := fmt.Sprintf("%s.%s.whileL2.%v", c.ST.className, c.ST.funcName, c.ST.whileCnt)
 	c.ST.whileCnt++
 	c.WriteKeyword() //  while
 	c.NextToken()    //  (
 	c.writer.writeLabel(l1)
 	c.CompileExpression()           // cond
-	c.writer.WriteArithmetic("neg") // ~cond
+	c.writer.WriteArithmetic("not") // ~cond
 	c.writer.writeIf(l2)
 	c.NextToken() //  )
 	c.NextToken() // {
@@ -689,7 +690,7 @@ func (c *CompilationEngine) CompileIf() {
 	c.WriteKeyword()                //  if
 	c.NextToken()                   //  (
 	c.CompileExpression()           //cond
-	c.writer.WriteArithmetic("neg") // ~cond
+	c.writer.WriteArithmetic("not") // ~cond
 	c.writer.writeIf(l1)
 	c.NextToken() //  )
 	c.NextToken() //  {
@@ -718,10 +719,10 @@ func (c *CompilationEngine) CompileTerm() {
 		if isUnaryOp[token] {
 			// unaryOp must be followed by term
 			c.CompileTerm()
-			c.writer.WriteArithmetic("neg")
-			if token == "-" { // ~x+1
-				c.writer.writePush(CONSTANT, 1)
-				c.writer.WriteArithmetic("add")
+			if token == "~" {
+				c.writer.WriteArithmetic("not")
+			} else { // token == "-" <=> ~x+1
+				c.writer.WriteArithmetic("neg")
 			}
 		} else if token == "(" {
 			c.CompileExpression()
@@ -750,7 +751,8 @@ func (c *CompilationEngine) CompileTerm() {
 		c.NextToken()
 		switch token {
 		case "true":
-			c.writer.writePush(CONSTANT, -1)
+			c.writer.writePush(CONSTANT, 1)
+			c.writer.WriteArithmetic("neg")
 		case "false", "null":
 			c.writer.writePush(CONSTANT, 0)
 		case "this": // in case of "return this;"
@@ -769,14 +771,16 @@ func (c *CompilationEngine) CompileTerm() {
 			kindName, index := c.ST.KindOf(token0), c.ST.IndexOf(token0)
 			c.writer.writePush(kind2Seg[kindName], index)
 			c.writer.WriteArithmetic("add")
+			c.writer.writePop(POINTER, 1)
+			c.writer.writePush(THAT, 0)
 			c.NextToken() //  ]
 		} else if token1Type == SYMBOL && c.tokenizer.Symbol() == "(" { //  subroutineCall case 1: call a method in current method
 			// ( expressionList )
 			c.NextToken() //  (
 			nArgs := 1
-			c.writer.writePush(THIS, 0) // first argument
+			c.writer.writePush(POINTER, 0) // first argument: the address of THIS segement
 			nArgs += c.CompileExpressionList()
-			c.writer.writeCall(token0, nArgs)
+			c.writer.writeCall(c.ST.className+"."+token0, nArgs)
 			c.NextToken() //  )
 		} else if token1Type == SYMBOL && c.tokenizer.Symbol() == "." { //  subroutineCall case 2
 			// .subroutineName
@@ -784,7 +788,7 @@ func (c *CompilationEngine) CompileTerm() {
 			subroutineName := c.tokenizer.Identifier()
 			kindName, typeName, index := c.ST.KindOf(token0), c.ST.TypeOf(token0), c.ST.IndexOf(token0)
 			nArgs := 0
-			if c.ST.IndexOf(token0) > 0 {
+			if c.ST.IndexOf(token0) >= 0 {
 				// if token0 is a variable(static,field,var,arg), then subroutine is a method
 				c.writer.writePush(kind2Seg[kindName], index)
 				nArgs++
@@ -793,8 +797,14 @@ func (c *CompilationEngine) CompileTerm() {
 			// ( expressionList )
 			c.NextToken() //  (
 			nArgs += c.CompileExpressionList()
-			c.writer.writeCall(typeName+subroutineName, nArgs)
+			c.writer.writeCall(typeName+"."+subroutineName, nArgs)
 			c.NextToken() //  )
+		} else if c.ST.IndexOf(token0) >= 0 {
+			// variable(static,field,var,arg)
+			kindName, index := c.ST.KindOf(token0), c.ST.IndexOf(token0)
+			c.writer.writePush(kind2Seg[kindName], index)
+		} else {
+			fmt.Println("unknown identifier: ", token0)
 		}
 	}
 }
@@ -872,7 +882,7 @@ func (c *CompilationEngine) WriteKeyword() string {
 	return token
 }
 
-func (c *CompilationEngine) WriteType() {
+func (c *CompilationEngine) WriteType() string {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("WriteType fail")
 	}
@@ -885,6 +895,7 @@ func (c *CompilationEngine) WriteType() {
 		log.Fatal("WriteType encounter invalid token", c.tokenizer.TokenType())
 	}
 	c.ST.curType = typeName // // record current symbol's types
+	return typeName
 }
 
 //*******************************************************************************************************************//
@@ -1002,7 +1013,10 @@ func (st *SymbolTable) TypeOf(name string) string {
 	if st.staticST[name] != nil {
 		return st.staticST[name].typeName
 	}
-	return NONE
+	if isBuiltInClass[name] {
+		return name
+	}
+	return name
 }
 
 func (st *SymbolTable) IndexOf(name string) int {
@@ -1039,7 +1053,7 @@ func (w *VMWriter) writePush(segment string, index int) {
 }
 
 func (w *VMWriter) writePop(segment string, index int) {
-	w.output.WriteString(fmt.Sprintf("push %s %v\n", segment, index))
+	w.output.WriteString(fmt.Sprintf("pop %s %v\n", segment, index))
 }
 
 func (w *VMWriter) WriteArithmetic(command string) {
