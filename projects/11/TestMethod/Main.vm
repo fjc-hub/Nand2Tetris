@@ -1,0 +1,9 @@
+function Main.main 1
+push constant 88
+call Printer.new 1
+pop local 0
+push local 0
+call Printer.print0 1
+pop temp 0
+push constant 0
+return

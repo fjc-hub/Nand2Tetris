@@ -1,0 +1,9 @@
+class Main {
+
+    function void main() {
+        var Printer printer;
+        let printer = Printer.new(88);
+        do printer.print0();
+        return;
+    }
+ }

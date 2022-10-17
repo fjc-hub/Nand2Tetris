@@ -1,0 +1,13 @@
+class Printer {
+    field int value;
+
+    constructor Printer new(int val){
+        let value = val;
+        return this;
+    }
+
+    method void print0() {
+        do Output.printInt(value);
+        return ;
+    }
+}

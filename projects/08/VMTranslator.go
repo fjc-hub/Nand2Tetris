@@ -111,7 +111,7 @@ func main() {
 			case C_GOTO:
 				codeWriter.writeGoto(parser.arg1())
 			case C_IF_GOTO:
-				codeWriter.writeIfGoto(parser.arg1())
+				codeWriter.writeIfGotoGoto(parser.arg1())
 			case C_FUNCTION:
 				codeWriter.writeFunction(parser.arg1(), parser.arg2())
 			case C_CALL:
@@ -584,7 +584,7 @@ func (c *CodeWriter) writeGoto(symbol string) {
 }
 
 // if D == 0, then jump
-func (c *CodeWriter) writeIfGoto(symbol string) {
+func (c *CodeWriter) writeIfGotoGoto(symbol string) {
 	c.output.WriteString(fmt.Sprintf(`
 			@SP
 			AM=M-1

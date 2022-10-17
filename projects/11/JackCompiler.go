@@ -506,6 +506,9 @@ func (c *CompilationEngine) CompileSubroutine() {
 	funcName := c.writeIdentifier() //  subroutineName
 	c.ST.startSubroutine(funcName)
 	c.NextToken() //  (
+	if subroutineType == "method" {
+		c.ST.Define(THIS, ARG, c.ST.className)
+	}
 	c.CompileParameterList()
 	c.NextToken() //  )
 	//*** local variables declaration
@@ -647,15 +650,15 @@ func (c *CompilationEngine) CompileWhile() {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("CompileWhile fail")
 	}
-	l1 := fmt.Sprintf("%s.%s.whileL1.%v", c.ST.className, c.ST.funcName, c.ST.whileCnt)
-	l2 := fmt.Sprintf("%s.%s.whileL2.%v", c.ST.className, c.ST.funcName, c.ST.whileCnt)
+	l1 := fmt.Sprintf("whileL1.%v", c.ST.whileCnt)
+	l2 := fmt.Sprintf("whileL2.%v", c.ST.whileCnt)
 	c.ST.whileCnt++
 	c.WriteKeyword() //  while
 	c.NextToken()    //  (
 	c.writer.writeLabel(l1)
 	c.CompileExpression()           // cond
 	c.writer.WriteArithmetic("not") // ~cond
-	c.writer.writeIf(l2)
+	c.writer.writeIfGoto(l2)
 	c.NextToken() //  )
 	c.NextToken() // {
 	c.CompileStatements()
@@ -683,28 +686,29 @@ func (c *CompilationEngine) CompileIf() {
 	if !c.tokenizer.HasMoreTokens() {
 		log.Fatal("CompileIf fail")
 	}
-	l1 := fmt.Sprintf("%s.%s.ifL1.%v\n", c.ST.className, c.ST.funcName, c.ST.ifCnt)
-	l2 := fmt.Sprintf("%s.%s.ifL2.%v\n", c.ST.className, c.ST.funcName, c.ST.ifCnt)
+	ifTrue := fmt.Sprintf("if_true_%v", c.ST.ifCnt)
+	ifFalse := fmt.Sprintf("if_false_%v", c.ST.ifCnt)
+	ifEnd := fmt.Sprintf("if_end_%v", c.ST.ifCnt)
 	c.ST.ifCnt++
-	c.writer.writeLabel(l1)
-	c.WriteKeyword()                //  if
-	c.NextToken()                   //  (
-	c.CompileExpression()           //cond
-	c.writer.WriteArithmetic("not") // ~cond
-	c.writer.writeIf(l1)
+	c.WriteKeyword()      //  if
+	c.NextToken()         //  (
+	c.CompileExpression() //cond
+	c.writer.writeIfGoto(ifTrue)
+	c.writer.writeGoto(ifFalse)
+	c.writer.writeLabel(ifTrue)
 	c.NextToken() //  )
 	c.NextToken() //  {
 	c.CompileStatements()
-	c.writer.writeGoto(l2)
 	c.NextToken() //  }
+	c.writer.writeGoto(ifEnd)
+	c.writer.writeLabel(ifFalse)
 	if c.tokenizer.TokenType() == KEYWORD && c.tokenizer.KeyWord() == "else" {
 		c.WriteKeyword() //  else
 		c.NextToken()    //  {
-		c.writer.writeLabel(l1)
 		c.CompileStatements()
 		c.NextToken() //  }
 	}
-	c.writer.writeLabel(l2)
+	c.writer.writeLabel(ifEnd)
 }
 
 func (c *CompilationEngine) CompileTerm() {
@@ -737,22 +741,18 @@ func (c *CompilationEngine) CompileTerm() {
 		c.NextToken()
 		c.writer.writePush(CONSTANT, len(token))
 		c.writer.writeCall("String.new", 1)
-		c.writer.writePop(TEMP, 0)
 		for i := range token {
-			c.writer.writePush(TEMP, 0)
 			c.writer.writePush(CONSTANT, int(token[i]))
 			c.writer.writeCall("String.appendChar", 2)
-			c.writer.writePop(TEMP, 0)
 		}
-		c.writer.writePush(TEMP, 0)
 	case KEYWORD:
 		token := c.tokenizer.KeyWord()
 		// assert token in (true, false, null, this) // no that
 		c.NextToken()
 		switch token {
 		case "true":
-			c.writer.writePush(CONSTANT, 1)
-			c.writer.WriteArithmetic("neg")
+			c.writer.writePush(CONSTANT, 0)
+			c.writer.WriteArithmetic("not")
 		case "false", "null":
 			c.writer.writePush(CONSTANT, 0)
 		case "this": // in case of "return this;"
@@ -1094,7 +1094,7 @@ func (w *VMWriter) writeGoto(label string) {
 	w.output.WriteString(fmt.Sprintf("goto %s\n", label))
 }
 
-func (w *VMWriter) writeIf(label string) {
+func (w *VMWriter) writeIfGoto(label string) {
 	w.output.WriteString(fmt.Sprintf("if-goto %s\n", label))
 }
 
