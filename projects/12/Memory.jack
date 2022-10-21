@@ -10,21 +10,46 @@
  */ 
 class Memory {
 
+    static Array RAM;
+    static Array Heap; // base address of heap
+    static int Head; // base address of the first segment of the Free List (空闲'链'表)
+    static int Tail; // base address of the last segment of the Free List (空闲'链'表)
+
     /** Initializes the class. */
     function void init() {
+        // given Jack is weekly typed, little hack to access all of RAM
+        let RAM = 0;
+        let Heap = 2048;
+        let Head = 0;
+        let Heap[Head] = 0; // set next segment = 0
+        let Heap[Head+1] = 14334; // meta data of the valid size (except for meta-data) of this segment
+        
     }
 
     /** Returns the RAM value at the given address. */
     function int peek(int address) {
+        return RAM[address];
     }
 
     /** Sets the RAM value at the given address to the given value. */
     function void poke(int address, int value) {
+        let RAM[address] = value;
+        return ;
     }
 
     /** Finds an available RAM block of the given size and returns
      *  a reference to its base address. */
     function int alloc(int size) {
+        var int realSize;
+        var int pointer;
+        let pointer = Head;
+        let realSize = size + 2;
+        while (pointer > 0) {
+            if (~(Heap[pointer+1] >= realSize)) { //Heap[pointer+1] >= realSize
+
+            }
+        }
+
     }
 
     /** De-allocates the given object (cast as an array) by making
