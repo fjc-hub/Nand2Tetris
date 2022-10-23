@@ -12,53 +12,122 @@
  */
 class String {
 
+    field int length;
+    field Array chars;
+
     /** constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
+        let length = 0;
+        let chars = Array.new(maxLength);
+        return this;
     }
 
     /** Disposes this string. */
     method void dispose() {
+        do chars.dispose()
+        do Memory.deAlloc(this);
+        return ;
     }
 
     /** Returns the current length of this string. */
     method int length() {
+        return length;
     }
 
     /** Returns the character at the j-th location of this string. */
     method char charAt(int j) {
+        return chars[j];
     }
 
     /** Sets the character at the j-th location of this string to c. */
     method void setCharAt(int j, char c) {
+        let chars[j] = c;
+        return ;
     }
 
     /** Appends c to this string's end and returns this string. */
     method String appendChar(char c) {
+        let chars[length] = c;
+        let length = length + 1;
+        return this;
     }
 
     /** Erases the last character from this string. */
     method void eraseLastChar() {
+        let length = length - 1;
+        return ;
     }
 
     /** Returns the integer value of this string, 
      *  until a non-digit character is detected. */
     method int intValue() {
+        var int sum;
+        var int i;
+        
+        let sum = 0;
+        let i = length-1;
+        while (~(i < 0)) {
+            if (~((chars[i] < 48) | (57 < chars[i]))) {
+                let sum = sum + chars[i] - 48;
+            } else {
+                return sum;
+            }
+            let i = i - 1;
+        }
+        return sum;
     }
 
     /** Sets this string to hold a representation of the given value. */
     method void setInt(int val) {
+        var String ret;
+        var boolean isNeg;
+
+        let isNeg = false
+        if (val < 0) {
+            isNeg = true
+        }
+
+        let ret = int2String(Math.abs(val), isNeg);
+
+        // using object memory layout to displace old chars Array (chars is second field of String)
+        do chars.dispose()
+        let chars = ret + 1;  // little hack
+
+        return ;
+    }
+
+    // return the string representation, separate sign and value
+    function String int2String(int val, boolean isNeg) {
+        var String str;
+        var char ch;
+
+        if (val < 10) {
+            let str = String.new(64);
+            if (isNeg) {
+                let str = str.appendChar(45)
+            }
+            return str.appendChar(val + 48);
+        }
+
+        let ch = val - (val / 10 * 10) + 48;
+        let str = int2String(val / 10, isNeg);
+
+        return str.appendChar(ch);
     }
 
     /** Returns the new line character. */
     function char newLine() {
+        return 128;
     }
 
     /** Returns the backspace character. */
     function char backSpace() {
+        return 129;
     }
 
     /** Returns the double quote (") character. */
     function char doubleQuote() {
+        return 34;
     }
 }

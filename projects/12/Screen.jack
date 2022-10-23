@@ -11,33 +11,193 @@
  */
 class Screen {
 
+    static Array powerOf2;
+    static int BaseAddr;
+    static boolean Color;
+
     /** Initializes the Screen. */
     function void init() {
+        var int i;
+
+        let BaseAddr = 16384;
+        let Color = 0;  //  overwrite old value of this static variable's address
+
+        let powerOf2 = Array.new(16);
+        let i = 1;
+        let powerOf2[0] = 1;
+        while (i < 16) {
+            let powerOf2[i] = powerOf2[i-1] + powerOf2[i-1];
+            let i = i + 1;
+        }
+
+        return ;
     }
 
     /** Erases the entire screen. */
     function void clearScreen() {
+        var int i, j;
+        let i = 0;
+        let j = 0;
+        while (i < 256) {
+            while (j < 512) {
+                do Memory.poke(i * 512 + j + Screen.BaseAddr, 0);
+                let j = j + 1;
+            }
+            let i = i + 1;
+        }
+        return ;
     }
 
     /** Sets the current color, to be used for all subsequent drawXXX commands.
      *  Black is represented by true, white by false. */
     function void setColor(boolean b) {
+        let Color = b;
     }
 
     /** Draws the (x,y) pixel, using the current color. */
     function void drawPixel(int x, int y) {
+        var int addr;
+        var int idx;
+        var int word;
+        let addr = 32 * y + (x / 16);
+        let word = Memory.peek(addr);
+        let idx = x - (x / 16 * 16);
+        if (color) {
+            let word = (word | powerOf2[idx]);
+        } else {
+            let word = (word | ~(powerOf2[idx]));
+        }
+        do Memory.poke(addr, word);
+        return ;
     }
 
     /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
     function void drawLine(int x1, int y1, int x2, int y2) {
+        // error case
+        if ((x1 < 0) | (x1 > 511) | (x2 < 0)| (x2 > 511) | (y1 < 0) | (y1 > 255) | (y2 < 0) | (y2 > 255)) {
+            do Sys.error(8);
+        }
+        // vertical
+        if (x1 = x2) {
+            do Screen.drawVertical(x1, y1, x2, y2);
+            return ;
+        }
+        // horizontal
+        if (y1 = y2) {
+            do Screen.drawHorizontal(x1, y1, x2, y2);
+            return ;
+        }
+        // other
+        if (~(((y1 - y2) & (x1 - x2)) < 0)) {
+            if (x1 < x2) {
+                do Screen.drawFromBottomLeft(x1, y1, x2, y2);
+            } else {
+                do Screen.drawFromBottomLeft(x2, y2, x1, y1);
+            }
+            return ;
+        } else {
+            if (x1 > x2) {
+                do Screen.drawFromBottomRight(x1, y1, x2, y2);
+            } else {
+                do Screen.drawFromBottomRight(x2, y2, x1, y1);
+            }
+        }
+        return ;
+    }
+
+    function void drawVertical(int x1, int y1, int x2, int y2) {
+        var int tmp;
+        if (y1 > y2) {
+            let tmp = y2;
+            let y2 = y1;
+            let y1 = y2;
+        }
+        while (~(y1 > y2)) {
+            do Screen.drawPixel(x1, y1);
+            let y1 = y1 + 1;
+        }
+        return ;
+    }
+
+    function void drawHorizontal(int x1, int y1, int x2, int y2) {
+        var int tmp;
+        if (x1 > x2) {
+            let tmp = x2;
+            let x2 = x1;
+            let x1 = x2;
+        }
+        while (~(x1 > x2)) {
+            do Screen.drawPixel(x1, y1);
+            let x1 = x1 + 1;
+        }
+        return ;
+    }
+
+    // point(x1, y1) is bottom-left of point(x2,y2) 
+    // VECTOR: (a, b), (dx, dy) 
+    function void drawFromBottomLeft(int x1, int y1, int x2, int y2) {
+        var int a, b, dx, dy;
+        var int diff;
+        let a = 0;
+        let b = 0;
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let diff = 0;
+
+        while (~(a > dx) & ~(b > dy)) {     // (a <= dx) & (b <= dy)  
+            do Screen.drawPixel(x1 + a, y1 + b);
+            if (diff < 0) {
+                let a = a + 1;
+                let diff = diff + dy;
+            } else {
+                let b = b + 1;
+                let diff = diff - dx;
+            }
+        }
+        return ;
+    }
+
+    // point(x1, y1) is bottom-right of point(x2,y2) 
+    // VECTOR: (-a, b), (-dx, dy)
+    function void drawFromBottomRight(int x1, int y1, int x2, int y2) {
+        var int a, b, dx, dy;
+        var int diff;
+        let a = 0;
+        let b = 0;
+        let dx = x1 - x2;
+        let dy = y2 - y1;
+        let diff = 0;
+
+        while (~(a > dx) & ~(b > dy)) {     // (a <= dx) & (b <= dy)  
+            do Screen.drawPixel(x1 - a, y1 + b);
+            if (diff < 0) {
+                let a = a + 1;
+                let diff = diff + dy;
+            } else {
+                let b = b + 1;
+                let diff = diff - dx;
+            }
+        }
+        return ;
     }
 
     /** Draws a filled rectangle whose top left corner is (x1, y1)
      * and bottom right corner is (x2,y2), using the current color. */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
+        while (~(y2 > y1)) {
+            do Screen.drawLine(x1, y2, x2, y2);
+            let y2 = y2 + 1;
+        }
     }
 
     /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
     function void drawCircle(int x, int y, int r) {
+        var int dx, dy;
+        let dy = -r;
+        while (~(dy < -r)) { // dy >= -r
+            let dx = Math.sqrt((r * r) - (dy * dy));
+            do Screen.drawLine(x - dx, dy, x + dx, dy);
+            let dy = dy - 1;
+        }
     }
 }

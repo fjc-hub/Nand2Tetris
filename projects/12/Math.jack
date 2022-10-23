@@ -22,6 +22,7 @@ class Math {
             let val = val + val;
             let i = i + 1;
         }
+        return ;
     }
 
     /** Returns the absolute value of x. */
