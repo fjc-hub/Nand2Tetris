@@ -455,7 +455,7 @@ call Screen.drawPixel 2
 pop temp 0
 push local 4
 push constant 0
-gt
+lt
 if-goto IF_TRUE0
 goto IF_FALSE0
 label IF_TRUE0

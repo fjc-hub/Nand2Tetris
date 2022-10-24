@@ -8,7 +8,7 @@
  * memory (RAM), and allocation and recycling of memory blocks. The Hack RAM
  * consists of 32,768 words, each holding a 16-bit binary number.
  */ 
-class Memory {
+ class Memory {
 
     static Array RAM;
     static Array Heap; // base address of heap
@@ -19,9 +19,9 @@ class Memory {
     function void init() {
         // given Jack is weekly typed, little hack to access all of RAM
         let RAM = 0;
-        let Heap = 2048;
-        let Heap[0] = 0; // set next segment = 0
-        let Heap[1] = 14334; // meta data of the valid size (except for meta-data) of this segment
+        let Heap = 2048;        // heap address range 2048-16383
+        let Heap[0] = 0;        // set next segment = 0
+        let Heap[1] = 14334;    // meta data of the valid size (except for meta-data) of this segment
         
         return ;
     }
@@ -43,16 +43,19 @@ class Memory {
         var int realSize;
         var int pointer;
         var int next;
+
         let pointer = 0;
         let next = -1; 
         let realSize = size + 2;
-        while (pointer > 0) {
-            if (~(Heap[pointer+1] >= realSize)) { //Heap[pointer+1] >= realSize
+        while (~(pointer < 0)) {  //  pointer >= 0
+            if (~(Heap[pointer+1] < realSize)) { // Heap[pointer+1] >= realSize
                 let next = pointer + Heap[pointer+1] + 2 - realSize;
                 let Heap[next] = 0;         // make sure this word'value is zero
                 let Heap[next+1] = size;    // set the non-free block's size for deAlloc
-                return next + 2;            // return the address of this block's data part
+                let Heap[pointer+1] = Heap[pointer+1] - realSize;
+                return Heap + next + 2;            // return the address of this block's data part
             }
+            let pointer = Heap[pointer];
         }
         return -1; // invalid address
     }
@@ -61,13 +64,15 @@ class Memory {
      *  it available for future allocations. */
     function void deAlloc(Array o) {
         var int pointer;
-        var int tail;
-        let tail = o - 2;
+
         let pointer = 0;
         while (~(Heap[pointer] = 0)) {  // pointer.next != 0(nil)
             let pointer = Heap[pointer];
         }
-        let Heap[pointer] = tail;
+        
+        let Heap[pointer] = o - 2 - Heap;  // Keyword: minus heap's base address
+        let o[0] = 0;
+
         return ;
     }    
 }

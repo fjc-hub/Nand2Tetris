@@ -13,19 +13,26 @@
 class String {
 
     field int length;
+    field int capacity;
     field Array chars;
 
     /** constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
         let length = 0;
-        let chars = Array.new(maxLength);
+        let capacity = maxLength;
+        if (maxLength > 0) {
+            let chars = Array.new(maxLength);
+        }
         return this;
     }
 
     /** Disposes this string. */
     method void dispose() {
-        do chars.dispose()
+        if (capacity > 0) {
+            // Keyword: when Array chars = nil, call dispose will access valid address
+            do chars.dispose();
+        }
         do Memory.deAlloc(this);
         return ;
     }
@@ -83,35 +90,44 @@ class String {
         var String ret;
         var boolean isNeg;
 
-        let isNeg = false
+        let isNeg = false;
         if (val < 0) {
-            isNeg = true
+            let isNeg = true;
         }
 
-        let ret = int2String(Math.abs(val), isNeg);
+        let ret = String.int2String(Math.abs(val), isNeg);
 
-        // using object memory layout to displace old chars Array (chars is second field of String)
-        do chars.dispose()
-        let chars = ret + 1;  // little hack
+        if (capacity > 0) {
+            do chars.dispose();
+        }
+
+        // using object memory layout to displace old chars Array (chars is third field of String)
+        let length = ret.length();
+        // let chars = ret.getArray();
+        let chars = Memory.peek(ret + 2);    // little hack, string's base address + 2
 
         return ;
+    }
+
+    method Array getArray() {
+        return chars;
     }
 
     // return the string representation, separate sign and value
     function String int2String(int val, boolean isNeg) {
         var String str;
-        var char ch;
+        var int ch;
 
         if (val < 10) {
             let str = String.new(64);
             if (isNeg) {
-                let str = str.appendChar(45)
+                let str = str.appendChar(45);
             }
             return str.appendChar(val + 48);
         }
 
         let ch = val - (val / 10 * 10) + 48;
-        let str = int2String(val / 10, isNeg);
+        let str = String.int2String(val / 10, isNeg);
 
         return str.appendChar(ch);
     }

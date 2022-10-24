@@ -16,7 +16,7 @@ class Math {
         var int val, i;
         let powerOf2 = Array.new(16);
         let val = 1;
-        let i = 0
+        let i = 0;
         while (i < 16) {
             let powerOf2[i] = val;
             let val = val + val;
@@ -41,15 +41,26 @@ class Math {
     function int multiply(int x, int y) {
         var int val, mark;
         var int ans;
+        var boolean isNeg;
+
+        // pay attention that Jack no operator priority
+        let isNeg = (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+
         let val = x;
         let mark = 1;
         let ans = 0;
-        while (mark <= y) {
+        while (~(mark < 1)) {  // mark >= 1, exit while clause when mark = 0x80 00
             if ((mark & y) > 0) {
                 let ans = ans + val;
             }
             let val = val + val;
             let mark = mark + mark;
+        }
+
+        if (isNeg) {
+            return -ans;
         }
         return ans;
     }
@@ -62,14 +73,17 @@ class Math {
     function int divide(int x, int y) {
         var int a, b;
         var int ret;
+        var boolean isNeg;
+
+        let isNeg = (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
         let a = Math.abs(x);
         let b = Math.abs(y);
         let ret = Math.doDivide(a, b);
-        if (((a > 0) & (b > 0)) | ((a < 0) & (b < 0))) { // pay attention that Jack no operator priority
-            return ret;
-        } else {
+        
+        if (isNeg) {
             return -ret;
         }
+        return ret;
     }
 
     // 1. Return the integer part of x/y, where x >= 0 and y > 0
@@ -77,16 +91,16 @@ class Math {
     // 3. you should consider the overflow of integer, otherwise doDivide won't terminate, stack overflow
     function int doDivide(int x, int y) {
         var int tmp;
+
         if ((y > x) | (y < 0)) {
             return 0;
         }
-        let tmp = doDivide(x, y + y);
-        if ((x & 1) == 0) {
-            // even
-            return tmp + 1;
-        } else {
-            // odd
+        let tmp = Math.doDivide(x, y + y);
+        let tmp = tmp + tmp;
+        if (x - (tmp * y) < y) {
             return tmp;
+        } else {
+            return tmp + 1;
         }
     }
 
@@ -96,11 +110,11 @@ class Math {
         var int tmp;
         let y = 0;
         let j = 7;
-        while (j >= 0) {
-            let tmp = y + Math.powerOf2[j];
-            let tmp = tmp + tmp;
-            if (tmp < x && tmp > 0) {
-                let y = y + Math.powerOf2[j];
+        while (j > -1) {  // j >= 0
+            let tmp = y + powerOf2[j];
+            let tmp = tmp * tmp;
+            if (~(tmp > x) & (tmp > 0)) {
+                let y = y + powerOf2[j];
             }
             let j = j - 1;
         }
@@ -114,10 +128,10 @@ class Math {
         var int l, r;  // [l, r]
         var int m;
         let l = 0;
-        let r = powerOf2[7];
+        let r = 181;
         while (l < r) {
             let m = (l + r + 1) / 2;
-            if (m * m > x) {
+            if (m > x / m) {       // little hack
                 let r = m - 1;
             } else {
                 let l = m;
@@ -144,11 +158,11 @@ class Math {
 
     /** return the max int in Jack (integer are encoded with 2'complement) */
     function int MaxInt() {
-        return Math.powerOf2[15] - 1;
+        return powerOf2[15] - 1;
     }
 
     /** return the min int in Jack (integer are encoded with 2'complement) */
     function int MinInt() {
-        return Math.powerOf2[15];
+        return powerOf2[15];
     }
 }

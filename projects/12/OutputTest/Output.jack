@@ -21,17 +21,18 @@ class Output {
     static int max_row, max_col;        // the number of text column and text row
     static int mask_left, mask_right;
     static int offset;                  // for shift operation
+    static Array ScreenAddr;
 
     /** Initializes the screen, and locates the cursor at the screen's top-left. */
     function void init() {
+        let ScreenAddr = 16384;
         do Output.initMap();
-        let cursor = 0;
         let crs_row = 0;
         let crs_col = 0;
         let max_row = 23;
         let max_col = 64;
         let mask_left = 255;    // 0x00 FF
-        let mask_right = -256;  // 0xFF 00
+        let mask_right = ~255;  // 0xFF 00  =  -256
         let offset = 256;       // 2 ^ 8
         return ;
     }
@@ -84,7 +85,7 @@ class Output {
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,0,0,0,0,0,0,0,0,0,0,0);          // A ** TO BE FILLED **
+        do Output.create(65,12,30,51,51,63,51,51,51,51,0,0); // A
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -190,31 +191,21 @@ class Output {
     /** Moves the cursor to the j-th column of the i-th row,
      *  and erases the character displayed there. */
     function void moveCursor(int i, int j) {
-        var boolean isOdd;
-        var int addr;
-        var int word;
-        var int t;
-        var Array arr;
 
-        let isOdd = false;
-        if (j & 1 = 1) {
-            let isOdd = true;
+        // clear old
+        do Output.putChar(crs_row, crs_col, 32);
+
+        if (j > 63) {
+            let j = 0;
+            let i = i + 1;  // pay attention !
+        }
+        if (i > 22) {
+            let i = 0;
         }
 
-        let arr = charMaps[1];
-        let addr = i * 11 * 16 + (j / 2);
-        let t = 0;
-        while (t < 11) {
-            let word = Memory.peek(addr + t)
-            if (isOdd) {
-                let word = word & mask_right | arr[t];
-            } else {
-                let arr[t] = arr[t] * offset;
-                let word = word & mask_left | arr[t];
-            }
-            do Memory.poke(addr + t, word);
-            let t = t + 1;
-        }
+        // clear and write
+        do Output.putChar(i, j, 32);
+        do Output.putChar(i, j, 1);
 
         let crs_row = i;
         let crs_col = j;
@@ -224,40 +215,55 @@ class Output {
     /** Displays the given character at the cursor location,
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
+        var int row, col;
+
+        let row = crs_row;
+        let col = crs_col;
+
+        do Output.moveCursor(crs_row, crs_col+1);  // advance and clear
+        do Output.putChar(row, col, c);  // write char
+
+        return ;
+    }
+
+    // put a character to the position
+    // not advances the cursor one column forward
+    function void putChar(int row, int col, char c) {
         var boolean isOdd;
         var int addr;
         var int word;
         var int t;
         var Array arr;
+        var int tmp;
+
+        if (row > 22) {
+            let row = 0;
+        }
+        if (col > 63) {
+            let col = 0;
+        }
 
         let isOdd = false;
-        if (crs_col & 1 = 1) {
+        if (col & 1 = 1) {
             let isOdd = true;
         }
 
         let arr = charMaps[c];
-        let addr = crs_row * 11 * 16 + (crs_col / 2);
+        let addr = row * 11 * 32 + (col / 2);
         let t = 0;
         while (t < 11) {
-            let word = Memory.peek(addr + t)
-            if (isOdd) {
+            let word = ScreenAddr[addr];
+            if (~isOdd) {
                 let word = word & mask_right | arr[t];
             } else {
-                let arr[t] = arr[t] * offset;
-                let word = word & mask_left | arr[t];
+                let tmp = arr[t] * offset;  //  equals to shift operation
+                let word = word & mask_left | tmp;
             }
-            do Memory.poke(addr + t, word);
+            let ScreenAddr[addr] = word;
+            let addr = addr + 32;
             let t = t + 1;
         }
 
-        if (crs_col + 1 = max_col) {
-            let crs_row = crs_row + 1;
-            let crs_col = 0;
-        } else {
-            let crs_row = crs_row;
-            let crs_col = crs_col + 1;
-        }
-        do Output.moveCursor(crs_row , crs_col);
         return ;
     }
 
@@ -285,11 +291,11 @@ class Output {
             let i = -i;
         }
 
-        if (i < 10) {
+        if (i < 10) {   // 0 <= i <= 9
             do Output.printChar(i + 48);
         } else {
             do Output.printInt(i / 10);
-            do Output.printChar(i - (i / 10 * 10));
+            do Output.printChar(i - (i / 10 * 10) + 48);
         }
 
         return ;
@@ -297,19 +303,16 @@ class Output {
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
-        let crs_row = crs_row + 1;
-        let crs_col = 0;
-        do Output.moveCursor(crs_row, crs_col);
+        do Output.moveCursor(crs_row + 1, 0);
+        return ;
     }
 
     /** Moves the cursor one column back. */
     function void backSpace() {
         if (crs_col = 0) {
-            let crs_row = crs_row - 1;
-            let crs_col = max_col - 1;
-        } else {
-            let crs_col = crs_col - 1;
+            return ;
         }
-        do Output.moveCursor(crs_row , crs_col);
+        do Output.moveCursor(crs_row , crs_col-1);
+        return ;
     }
 }

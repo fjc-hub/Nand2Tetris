@@ -8,12 +8,13 @@
  */
 class Keyboard {
 
+    static int RAM;
     static int BaseAddr;
 
     /** Initializes the keyboard. */
     function void init() {
+        let RAM = 0;
         let BaseAddr = 24576;
-
         return ;
     }
 
@@ -38,7 +39,7 @@ class Keyboard {
      * F1 - F12 = 141 - 152
      */
     function char keyPressed() {
-        return Memory.peek(BaseAddr);
+        return RAM[BaseAddr];
     }
 
     /**								
@@ -60,7 +61,7 @@ class Keyboard {
             // waiting release
         }
 
-        do Output.printChar(ret)
+        do Output.printChar(ret);
 
         return ret;
     }
@@ -134,10 +135,10 @@ class Keyboard {
             let isNeg = true;
         }
         if (~((ch < 48) | (57 < ch))) {
-            let ans = (ch - 48)
+            let ans = (ch - 48);
         }
 
-        while ((~(ch = 128) & ~(break)) {
+        while ((~(ch = 128) & ~(break))) {
             let ch = Keyboard.readCharWithOutDisplay();
             if (ch = 129) {
                 // backspace
@@ -155,7 +156,7 @@ class Keyboard {
             let ans = -ans;
         }
 
-        do Output.printInt(ans)
+        do Output.printInt(ans);
 
         return ans;
     }

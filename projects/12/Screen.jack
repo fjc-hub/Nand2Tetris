@@ -9,18 +9,18 @@
  * of 512 pixels each (indexed 0..511, left to right). The top left pixel on 
  * the screen is indexed (0,0).
  */
- class Screen {
+class Screen {
 
     static Array powerOf2;
-    static int BaseAddr;
+    static Array ScreenAddr;
     static boolean Color;
 
     /** Initializes the Screen. */
     function void init() {
         var int i;
 
-        let BaseAddr = 16384;
-        let Color = 0;  //  overwrite old value of this static variable's address
+        let ScreenAddr = 16384;
+        let Color = true;  //  overwrite old value of this static variable's address
 
         let powerOf2 = Array.new(16);
         let i = 1;
@@ -40,7 +40,7 @@
         let j = 0;
         while (i < 256) {
             while (j < 512) {
-                do Memory.poke(i * 512 + j + BaseAddr, 0);
+                let ScreenAddr[i * 512 + j] = 0;
                 let j = j + 1;
             }
             let i = i + 1;
@@ -59,25 +59,15 @@
     function void drawPixel(int x, int y) {
         var int addr;
         var int idx;
-        var int word;
 
         let addr = 32 * y + (x / 16);
-        let word = Memory.peek(addr);
         let idx = x - (x / 16 * 16);
 
-        // do Output.printInt(addr);
-        //     do Output.printChar(0);
-        //     do Output.printInt(idx);
-        //     do Output.printChar(0);
-        //     do Output.printInt(Color);
-        //     do Output.println();
-
         if (Color) {
-            let word = (word | powerOf2[idx]);
+            let ScreenAddr[addr] = ScreenAddr[addr] | powerOf2[idx];
         } else {
-            let word = (word & ~(powerOf2[idx]));
+            let ScreenAddr[addr] = ScreenAddr[addr] & ~(powerOf2[idx]);
         }
-        do Memory.poke(addr, word);
         return ;
     }
 
@@ -98,18 +88,18 @@
             return ;
         }
         // other
-        if (~(((y1 - y2) & (x1 - x2)) < 0)) {
+        if (y1 < y2) {  // 注意原点在左上角
             if (x1 < x2) {
-                do Screen.drawFromBottomLeft(x1, y1, x2, y2);
+                do Screen.drawFromTopLeft(x1, y1, x2, y2);
             } else {
-                do Screen.drawFromBottomLeft(x2, y2, x1, y1);
+                do Screen.drawFromTopRight(x1, y1, x2, y2);
             }
             return ;
         } else {
             if (x1 > x2) {
-                do Screen.drawFromBottomRight(x1, y1, x2, y2);
+                do Screen.drawFromTopLeft(x2, y2, x1, y1);
             } else {
-                do Screen.drawFromBottomRight(x2, y2, x1, y1);
+                do Screen.drawFromTopRight(x2, y2, x1, y1);
             }
         }
         return ;
@@ -144,16 +134,16 @@
         return ;
     }
 
-    // point(x1, y1) is bottom-left of point(x2,y2) 
+    // point(x1, y1) is top-left of point(x2,y2) 
     // VECTOR: (a, b), (dx, dy) 
-    function void drawFromBottomLeft(int x1, int y1, int x2, int y2) {
+    function void drawFromTopLeft(int x1, int y1, int x2, int y2) {
         var int a, b, dx, dy;
         var int diff;
         let a = 0;
         let b = 0;
         let dx = x2 - x1;
         let dy = y2 - y1;
-        let diff = 0;
+        let diff = 0;   // diff = a * dy - b * dx
 
         while (~(a > dx) & ~(b > dy)) {     // (a <= dx) & (b <= dy)  
             do Screen.drawPixel(x1 + a, y1 + b);
@@ -168,16 +158,16 @@
         return ;
     }
 
-    // point(x1, y1) is bottom-right of point(x2,y2) 
+    // point(x1, y1) is top-right of point(x2,y2) 
     // VECTOR: (-a, b), (-dx, dy)
-    function void drawFromBottomRight(int x1, int y1, int x2, int y2) {
+    function void drawFromTopRight(int x1, int y1, int x2, int y2) {
         var int a, b, dx, dy;
         var int diff;
         let a = 0;
         let b = 0;
         let dx = x1 - x2;
         let dy = y2 - y1;
-        let diff = 0;
+        let diff = 0;       // diff = a * dy - b * dx
 
         while (~(a > dx) & ~(b > dy)) {     // (a <= dx) & (b <= dy)  
             do Screen.drawPixel(x1 - a, y1 + b);
@@ -195,9 +185,22 @@
     /** Draws a filled rectangle whose top left corner is (x1, y1)
      * and bottom right corner is (x2,y2), using the current color. */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
-        while (~(y2 > y1)) {
-            do Screen.drawLine(x1, y2, x2, y2);
-            let y2 = y2 + 1;
+        var int idx, end, dy;
+
+        let dy = Math.abs(y1 - y2);
+        if (y1 < y2) {
+            let dy = y2 - y1;
+            let idx = y1;
+            let end = y2;
+        } else {
+            let dy = y1 - y2;
+            let idx = y2;
+            let end = y1;
+        }
+
+        while (~(idx > end)) {  //  idx <= end
+            do Screen.drawLine(x1, idx, x2, idx);
+            let idx = idx + 1;
         }
         return ;
     }
@@ -205,13 +208,6 @@
     /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
     function void drawCircle(int x, int y, int r) {
         var int dx, dy;
-
-        // do Output.printChar(0);
-        // do Output.printInt(x);
-        // do Output.printChar(0);
-        // do Output.printInt(y);
-        // do Output.printChar(0);
-        // do Output.printInt(r);
 
         let dy = r;
         while (~(dy < -r)) { // dy >= -r
