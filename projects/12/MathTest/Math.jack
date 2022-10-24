@@ -1,0 +1,168 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Math.jack
+
+/**
+ * A library of commonly used mathematical functions.
+ * Note: Jack compilers implement multiplication and division using OS method calls.
+ */
+class Math {
+    
+    static Array powerOf2;
+
+    /** Initializes the library. */
+    function void init() {
+        var int val, i;
+        let powerOf2 = Array.new(16);
+        let val = 1;
+        let i = 0;
+        while (i < 16) {
+            let powerOf2[i] = val;
+            let val = val + val;
+            let i = i + 1;
+        }
+        return ;
+    }
+
+    /** Returns the absolute value of x. */
+    function int abs(int x) {
+        if (x < 0) {
+            return -x;
+        }
+        return x;
+    }
+
+    /** Returns the product of x and y. 
+     *  When a Jack compiler detects the multiplication operator '*' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x*y and multiply(x,y) return the same value.
+     */
+    function int multiply(int x, int y) {
+        var int val, mark;
+        var int ans;
+        var boolean isNeg;
+
+        // pay attention that Jack no operator priority
+        let isNeg = (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
+        let x = Math.abs(x);
+        let y = Math.abs(y);
+
+        let val = x;
+        let mark = 1;
+        let ans = 0;
+        while (~(mark < 1)) {  // mark >= 1, exit while clause when mark = 0x80 00
+            if ((mark & y) > 0) {
+                let ans = ans + val;
+            }
+            let val = val + val;
+            let mark = mark + mark;
+        }
+
+        if (isNeg) {
+            return -ans;
+        }
+        return ans;
+    }
+
+    /** Returns the integer part of x/y.
+     *  When a Jack compiler detects the multiplication operator '/' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x/y and divide(x,y) return the same value.
+     */
+    function int divide(int x, int y) {
+        var int a, b;
+        var int ret;
+        var boolean isNeg;
+
+        let isNeg = (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
+        let a = Math.abs(x);
+        let b = Math.abs(y);
+        let ret = Math.doDivide(a, b);
+        
+        if (isNeg) {
+            return -ret;
+        }
+        return ret;
+    }
+
+    // 1. Return the integer part of x/y, where x >= 0 and y > 0
+    // 2. Recursively, REDUCE f(x, y) to 2*f(x, 2*y) or 2*f(x, 2*y) + 1
+    // 3. you should consider the overflow of integer, otherwise doDivide won't terminate, stack overflow
+    function int doDivide(int x, int y) {
+        var int tmp;
+
+        if ((y > x) | (y < 0)) {
+            return 0;
+        }
+        let tmp = Math.doDivide(x, y + y);
+        let tmp = tmp + tmp;
+        if (x - (tmp * y) < y) {
+            return tmp;
+        } else {
+            return tmp + 1;
+        }
+    }
+
+    /** Returns the integer part of the square root of x. */
+    function int sqrt(int x) {
+        var int y, j;
+        var int tmp;
+        let y = 0;
+        let j = 7;
+        while (j > -1) {  // j >= 0
+            let tmp = y + powerOf2[j];
+            let tmp = tmp * tmp;
+            if (~(tmp > x) & (tmp > 0)) {
+                let y = y + powerOf2[j];
+            }
+            let j = j - 1;
+        }
+        return y;
+    }
+
+    // it too slow, but, relatively, easy to understand
+    // classical binary search algorithm
+    // binary search, because its inverse function (x^2) can be easily computed
+    function int slowlySqrt(int x) {
+        var int l, r;  // [l, r]
+        var int m;
+        let l = 0;
+        let r = 181;
+        while (l < r) {
+            let m = (l + r + 1) / 2;
+            if (m > x / m) {       // little hack
+                let r = m - 1;
+            } else {
+                let l = m;
+            }
+        }
+        return l;
+    }
+
+    /** Returns the greater number. */
+    function int max(int a, int b) {
+        if (a < b) {
+            return b;
+        }
+        return a;
+    }
+
+    /** Returns the smaller number. */
+    function int min(int a, int b) {
+        if (a < b) {
+            return a;
+        }
+        return b;
+    }
+
+    /** return the max int in Jack (integer are encoded with 2'complement) */
+    function int MaxInt() {
+        return powerOf2[15] - 1;
+    }
+
+    /** return the min int in Jack (integer are encoded with 2'complement) */
+    function int MinInt() {
+        return powerOf2[15];
+    }
+}

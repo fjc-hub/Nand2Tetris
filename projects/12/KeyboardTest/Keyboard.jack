@@ -1,0 +1,163 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Keyboard.jack
+
+/**
+ * A library for handling user input from the keyboard.
+ */
+class Keyboard {
+
+    static int RAM;
+    static int BaseAddr;
+
+    /** Initializes the keyboard. */
+    function void init() {
+        let RAM = 0;
+        let BaseAddr = 24576;
+        return ;
+    }
+
+    /**
+     * Returns the character of the currently pressed key on the keyboard;
+     * if no key is currently pressed, returns 0.
+     *
+     * Recognizes all ASCII characters, as well as the following keys:
+     * new line = 128 = String.newline()
+     * backspace = 129 = String.backspace()
+     * left arrow = 130
+     * up arrow = 131
+     * right arrow = 132
+     * down arrow = 133
+     * home = 134
+     * End = 135
+     * page up = 136
+     * page down = 137
+     * insert = 138
+     * delete = 139
+     * ESC = 140
+     * F1 - F12 = 141 - 152
+     */
+    function char keyPressed() {
+        return RAM[BaseAddr];
+    }
+
+    /**								
+     * Waits until a key is pressed on the keyboard and released,
+     * then echoes the key to the screen, and returns the character 
+     * of the pressed key.
+     */
+    function char readChar() {
+        var char ret;
+        
+        let ret = 0;
+        while (Keyboard.keyPressed() = 0) {
+            // waiting press
+        }
+
+        let ret = Keyboard.keyPressed();
+
+        while (~(Keyboard.keyPressed() = 0)) {
+            // waiting release
+        }
+
+        do Output.printChar(ret);
+
+        return ret;
+    }
+
+    function char readCharWithOutDisplay() {
+        var char ret;
+        
+        let ret = 0;
+        while (Keyboard.keyPressed() = 0) {
+            // waiting press
+        }
+
+        let ret = Keyboard.keyPressed();
+
+        while (~(Keyboard.keyPressed() = 0)) {
+            // waiting release
+        }
+
+        return ret;
+    }
+
+    /**								
+     * Displays the message on the screen, reads from the keyboard the entered
+     * text until a newline character is detected, echoes the text to the screen,
+     * and returns its value. Also handles user backspaces.
+     */
+    function String readLine(String message) {
+        var char ch;
+        var String str;
+
+        let str = String.new(64);
+        do Output.printString(message);
+
+        let ch = 0;
+        while (~(ch = 128)) {
+            let ch = Keyboard.readCharWithOutDisplay();
+            if (ch = 129) {
+                // backspace
+                do str.eraseLastChar();
+            } else {
+                if (~(ch = 128)) {
+                    let str = str.appendChar(ch);
+                }
+            }
+        }
+
+        do Output.printString(str);
+
+        return str;
+    }   
+
+    /**								
+     * Displays the message on the screen, reads from the keyboard the entered
+     * text until a newline character is detected, echoes the text to the screen,
+     * and returns its integer value (until the first non-digit character in the
+     * entered text is detected). Also handles user backspaces. 
+     */
+    function int readInt(String message) {
+        var int ch;
+        var int ans;
+        var boolean isNeg;
+        var boolean break;
+
+        let isNeg = false;
+        let break = false;
+        do Output.printString(message);
+
+        let ch = Keyboard.readCharWithOutDisplay();
+        // assert ch != 0;
+        if (ch = 45) {
+            let isNeg = true;
+        }
+        if (~((ch < 48) | (57 < ch))) {
+            let ans = (ch - 48);
+        }
+
+        while ((~(ch = 128) & ~(break))) {
+            let ch = Keyboard.readCharWithOutDisplay();
+            if (ch = 129) {
+                // backspace
+                let ans = ans / 10;
+            } else {
+                if (~((ch < 48) | (57 < ch))) {
+                    let ans = ans * 10 + ch - 48;
+                } else {
+                    let break = true;
+                }
+            }
+        }
+
+        if (isNeg) {
+            let ans = -ans;
+        }
+
+        do Output.printInt(ans);
+
+        return ans;
+    }
+}
